@@ -1,10 +1,8 @@
 "use client"
 
-import { useCallback } from "react"
+import { useState, useEffect, useCallback } from "react"
+import { useSocket } from "@/contexts/socket-context"
 import { CasesTable } from "./cases-table"
-import { useRealtime } from "@/hooks/use-realtime"
-import { Loader2, RefreshCw } from "lucide-react"
-import { Button } from "@/components/ui/button"
 import type { CaseStatus } from "@/lib/types"
 
 interface CaseWithProvider {
@@ -31,97 +29,55 @@ interface Provider {
 interface RealtimeCasesTableProps {
   initialCases: CaseWithProvider[]
   initialProviders: Provider[]
-  initialIsOwner: boolean
+  isOwner: boolean
+  providerId?: string
 }
 
 export function RealtimeCasesTable({
   initialCases,
   initialProviders,
-  initialIsOwner,
+  isOwner,
+  providerId,
 }: RealtimeCasesTableProps) {
-  const fetcher = useCallback(async () => {
-    const response = await fetch("/api/cases", { cache: "no-store" })
-    if (!response.ok) {
-      throw new Error("Failed to fetch cases")
-    }
-    const data = await response.json()
-    return {
-      cases: data.cases.map((c: any) => ({
-        ...c,
-        createdAt: new Date(c.createdAt),
-      })),
-      isOwner: data.isOwner,
-    }
-  }, [])
+  const [cases, setCases] = useState<CaseWithProvider[]>(initialCases)
+  const [providers, setProviders] = useState<Provider[]>(initialProviders)
+  const { onMessage } = useSocket()
 
-  const fetchProviders = useCallback(async () => {
-    const response = await fetch("/api/providers", { cache: "no-store" })
-    if (!response.ok) {
-      if (response.status === 403) {
-        // Not an owner, return empty array
-        return []
+  const fetchLatestData = useCallback(async () => {
+    try {
+      const url = providerId 
+        ? `/api/cases?providerId=${providerId}` 
+        : "/api/cases"
+      const response = await fetch(url, { cache: "no-store" })
+      if (response.ok) {
+        const data = await response.json()
+        setCases(data.cases.map((c: any) => ({
+          ...c,
+          createdAt: new Date(c.createdAt),
+        })))
+        setProviders(data.providers || [])
       }
-      throw new Error("Failed to fetch providers")
+    } catch (error) {
+      console.error("Failed to fetch cases:", error)
     }
-    const data = await response.json()
-    return data.providers
-  }, [])
+  }, [providerId])
 
-  const { data: casesData, loading: casesLoading, refresh: refreshCases } = useRealtime({
-    fetcher,
-    interval: 3000, // Refresh every 3 seconds
-  })
+  useEffect(() => {
+    const unsubscribe = onMessage((data: any) => {
+      if (data.type === "case:updated" || data.type === "dashboard:updated") {
+        fetchLatestData()
+      }
+    })
 
-  const { data: providersData, refresh: refreshProviders } = useRealtime({
-    fetcher: fetchProviders,
-    interval: 5000, // Refresh providers every 5 seconds
-    enabled: initialIsOwner,
-  })
-
-  const cases = casesData?.cases ?? initialCases
-  const isOwner = casesData?.isOwner ?? initialIsOwner
-  const providers = providersData ?? initialProviders
-
-  // Trigger immediate refresh on user actions
-  const handleRefresh = useCallback(() => {
-    refreshCases()
-    if (initialIsOwner) {
-      refreshProviders()
-    }
-  }, [refreshCases, refreshProviders, initialIsOwner])
+    return unsubscribe
+  }, [onMessage, fetchLatestData])
 
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-end gap-2">
-        <div className="flex items-center text-sm text-muted-foreground">
-          {casesLoading ? (
-            <>
-              <Loader2 className="h-3 w-3 mr-1.5 animate-spin" />
-              <span>Updating...</span>
-            </>
-          ) : (
-            <>
-              <div className="h-2 w-2 mr-1.5 rounded-full bg-green-500 animate-pulse" />
-              <span>Live</span>
-            </>
-          )}
-        </div>
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={handleRefresh}
-          disabled={casesLoading}
-          title="Refresh now"
-        >
-          <RefreshCw className={`h-4 w-4 ${casesLoading ? 'animate-spin' : ''}`} />
-        </Button>
-      </div>
-      <CasesTable 
-        cases={cases} 
-        providers={providers} 
-        isOwner={isOwner}
-        onRefresh={handleRefresh}
-      />
-    </div>
+    <CasesTable 
+      cases={cases}
+      providers={providers}
+      isOwner={isOwner}
+      onRefresh={fetchLatestData}
+    />
   )
 }

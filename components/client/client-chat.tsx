@@ -1,15 +1,15 @@
 "use client"
 
-import React from "react"
-
-import { useState, useRef, useEffect } from "react"
+import React, { useState, useRef, useEffect } from "react"
 import { format } from "date-fns"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 import { ScrollArea } from "@/components/ui/scroll-area"
-import { Send, Loader2 } from "lucide-react"
-import { sendClientMessage, getClientMessages } from "@/lib/actions/chat"
+import { Send, Loader2, Wifi, WifiOff } from "lucide-react"
+import { getClientMessages } from "@/lib/actions/chat"
 import { cn } from "@/lib/utils"
+import { useClientSocket } from "@/contexts/client-socket-context"
+import { toast } from "sonner"
 
 interface Message {
   id: string
@@ -23,25 +23,26 @@ interface Message {
 interface ClientChatProps {
   token: string
   clientName: string
+  caseId: string
 }
 
-export function ClientChat({ token, clientName }: ClientChatProps) {
+export function ClientChat({ token, clientName, caseId }: ClientChatProps) {
   const [messages, setMessages] = useState<Message[]>([])
   const [newMessage, setNewMessage] = useState("")
   const [sending, setSending] = useState(false)
   const [loading, setLoading] = useState(true)
-  const [refreshing, setRefreshing] = useState(false)
   const scrollAreaRef = useRef<HTMLDivElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
+  const messagesEndRef = useRef<HTMLDivElement>(null)
+  const { isConnected, joinCase, leaveCase, sendMessage, onMessage } = useClientSocket()
 
-  // Load initial messages
   useEffect(() => {
     async function loadMessages() {
       try {
         const data = await getClientMessages(token)
         setMessages(data)
       } catch (error) {
-        console.error("[*] Failed to load messages:", error)
+        console.error("Failed to load messages:", error)
       } finally {
         setLoading(false)
       }
@@ -49,43 +50,60 @@ export function ClientChat({ token, clientName }: ClientChatProps) {
     loadMessages()
   }, [token])
 
-  // Scroll to bottom when messages change
   useEffect(() => {
-    if (scrollAreaRef.current) {
-      scrollAreaRef.current.scrollTop = scrollAreaRef.current.scrollHeight
+    if (scrollAreaRef.current && messagesEndRef.current) {
+      messagesEndRef.current.scrollIntoView({ behavior: "smooth", block: "end" })
     }
   }, [messages])
 
-  // Poll for new messages
   useEffect(() => {
-    const interval = setInterval(async () => {
-      if (!refreshing && !sending) {
-        setRefreshing(true)
-        try {
-          const data = await getClientMessages(token)
-          setMessages(data)
-        } catch {
-          // Silently fail
-        } finally {
-          setRefreshing(false)
-        }
-      }
-    }, 5000)
+    joinCase(caseId, token)
 
-    return () => clearInterval(interval)
-  }, [token, refreshing, sending])
+    return () => {
+      leaveCase(caseId)
+    }
+  }, [caseId, token, joinCase, leaveCase])
+
+  useEffect(() => {
+    const unsubscribe = onMessage((data: any) => {
+      const { type, payload } = data
+
+      switch (type) {
+        case "message:new":
+          if (payload.caseId === caseId) {
+            setMessages((prev) => {
+              if (prev.some((m) => m.id === payload.message.id)) {
+                return prev
+              }
+              return [...prev, payload.message]
+            })
+          }
+          break
+
+        case "joined:case":
+          toast.success("Connected to chat")
+          break
+
+        case "error":
+          toast.error(payload.message || "An error occurred")
+          break
+      }
+    })
+
+    return unsubscribe
+  }, [caseId, onMessage])
 
   async function handleSend() {
     if (!newMessage.trim() || sending) return
 
     setSending(true)
     try {
-      const message = await sendClientMessage(token, newMessage.trim())
-      setMessages((prev) => [...prev, { ...message, senderName: clientName }])
+      sendMessage(token, newMessage.trim())
       setNewMessage("")
       textareaRef.current?.focus()
     } catch (error) {
-      console.error("[*] Failed to send message:", error)
+      console.error("Failed to send message:", error)
+      toast.error("Failed to send message")
     } finally {
       setSending(false)
     }
@@ -108,7 +126,22 @@ export function ClientChat({ token, clientName }: ClientChatProps) {
 
   return (
     <div className="space-y-4">
-      {/* Messages */}
+      <div className="flex items-center justify-between pb-2">
+        <div className="flex items-center gap-2">
+          {isConnected ? (
+            <>
+              <Wifi className="h-4 w-4 text-green-500" />
+              <span className="text-xs text-muted-foreground">Connected</span>
+            </>
+          ) : (
+            <>
+              <WifiOff className="h-4 w-4 text-red-500" />
+              <span className="text-xs text-muted-foreground">Connecting...</span>
+            </>
+          )}
+        </div>
+      </div>
+
       <ScrollArea className="h-[350px] pr-4" ref={scrollAreaRef}>
         {messages.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full text-center p-4">
@@ -153,11 +186,11 @@ export function ClientChat({ token, clientName }: ClientChatProps) {
                 </div>
               )
             })}
+            <div ref={messagesEndRef} />
           </div>
         )}
       </ScrollArea>
 
-      {/* Input */}
       <div className="flex gap-2 pt-2 border-t border-border">
         <Textarea
           ref={textareaRef}
@@ -167,11 +200,11 @@ export function ClientChat({ token, clientName }: ClientChatProps) {
           placeholder="Type your message..."
           rows={2}
           className="bg-background resize-none"
-          disabled={sending}
+          disabled={sending || !isConnected}
         />
         <Button
           onClick={handleSend}
-          disabled={!newMessage.trim() || sending}
+          disabled={!newMessage.trim() || sending || !isConnected}
           size="icon"
           className="h-auto"
         >
@@ -183,12 +216,6 @@ export function ClientChat({ token, clientName }: ClientChatProps) {
           <span className="sr-only">Send message</span>
         </Button>
       </div>
-      
-      {refreshing && (
-        <p className="text-xs text-muted-foreground text-center">
-          Checking for new messages...
-        </p>
-      )}
     </div>
   )
 }

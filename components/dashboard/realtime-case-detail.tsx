@@ -1,10 +1,9 @@
 "use client"
 
-import { useCallback } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { CaseDetail } from "./case-detail"
-import { useRealtime } from "@/hooks/use-realtime"
-import { Loader2, RefreshCw } from "lucide-react"
-import { Button } from "@/components/ui/button"
+import { useSocket } from "@/contexts/socket-context"
+import { Wifi, WifiOff } from "lucide-react"
 import type { CaseStatus, User as UserType, SenderType } from "@/lib/types"
 
 interface CaseData {
@@ -76,83 +75,76 @@ export function RealtimeCaseDetail({
   initialCurrentUser,
   caseId,
 }: RealtimeCaseDetailProps) {
-  const fetcher = useCallback(async () => {
-    const response = await fetch(`/api/cases/${caseId}`, { cache: "no-store" })
-    if (!response.ok) {
-      throw new Error("Failed to fetch case")
-    }
-    const data = await response.json()
-    
-    // Convert date strings back to Date objects
-    return {
-      caseData: {
-        ...data.caseData,
-        dob: data.caseData.dob ? new Date(data.caseData.dob) : null,
-        emailReceivedAt: data.caseData.emailReceivedAt ? new Date(data.caseData.emailReceivedAt) : null,
-        createdAt: new Date(data.caseData.createdAt),
-        updatedAt: new Date(data.caseData.updatedAt),
-        messages: data.caseData.messages.map((m: any) => ({
-          ...m,
-          createdAt: new Date(m.createdAt),
-        })),
-        statusHistory: data.caseData.statusHistory.map((h: any) => ({
-          ...h,
-          createdAt: new Date(h.createdAt),
-        })),
-        magicLinks: data.caseData.magicLinks.map((l: any) => ({
-          ...l,
-          createdAt: new Date(l.createdAt),
-          expiresAt: l.expiresAt ? new Date(l.expiresAt) : null,
-          revokedAt: l.revokedAt ? new Date(l.revokedAt) : null,
-        })),
-      },
-      providers: data.providers,
-      currentUser: data.currentUser,
+  const [caseData, setCaseData] = useState<CaseData>(initialCaseData)
+  const [providers, setProviders] = useState<Provider[]>(initialProviders)
+  const { isConnected, onMessage } = useSocket()
+
+  const fetchLatestData = useCallback(async () => {
+    try {
+      const response = await fetch(`/api/cases/${caseId}`, { cache: "no-store" })
+      if (response.ok) {
+        const data = await response.json()
+        setCaseData({
+          ...data.caseData,
+          dob: data.caseData.dob ? new Date(data.caseData.dob) : null,
+          emailReceivedAt: data.caseData.emailReceivedAt ? new Date(data.caseData.emailReceivedAt) : null,
+          createdAt: new Date(data.caseData.createdAt),
+          updatedAt: new Date(data.caseData.updatedAt),
+          messages: data.caseData.messages.map((m: any) => ({
+            ...m,
+            createdAt: new Date(m.createdAt),
+          })),
+          statusHistory: data.caseData.statusHistory.map((h: any) => ({
+            ...h,
+            createdAt: new Date(h.createdAt),
+          })),
+          magicLinks: data.caseData.magicLinks.map((l: any) => ({
+            ...l,
+            createdAt: new Date(l.createdAt),
+            expiresAt: l.expiresAt ? new Date(l.expiresAt) : null,
+            revokedAt: l.revokedAt ? new Date(l.revokedAt) : null,
+          })),
+        })
+        setProviders(data.providers)
+      }
+    } catch (error) {
+      console.error("Failed to fetch case data:", error)
     }
   }, [caseId])
 
-  const { data, loading, refresh } = useRealtime({
-    fetcher,
-    interval: 3000, // Refresh every 3 seconds
-  })
+  useEffect(() => {
+    const unsubscribe = onMessage((data: any) => {
+      if (data.type === "case:updated" && data.payload.caseId === caseId) {
+        fetchLatestData()
+      }
+    })
 
-  const caseData = data?.caseData ?? initialCaseData
-  const providers = data?.providers ?? initialProviders
-  const currentUser = data?.currentUser ?? initialCurrentUser
+    return unsubscribe
+  }, [caseId, onMessage, fetchLatestData])
 
   return (
     <div className="relative">
-      {/* Realtime Indicator */}
       <div className="fixed top-20 right-4 z-50 flex items-center gap-2 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border rounded-lg px-3 py-2 shadow-lg">
         <div className="flex items-center text-sm text-muted-foreground">
-          {loading ? (
+          {isConnected ? (
             <>
-              <Loader2 className="h-3 w-3 mr-1.5 animate-spin" />
-              <span>Updating...</span>
+              <Wifi className="h-3 w-3 mr-1.5 text-green-500" />
+              <span>Live</span>
             </>
           ) : (
             <>
-              <div className="h-2 w-2 mr-1.5 rounded-full bg-green-500 animate-pulse" />
-              <span>Live</span>
+              <WifiOff className="h-3 w-3 mr-1.5 text-red-500" />
+              <span>Connecting...</span>
             </>
           )}
         </div>
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={() => refresh()}
-          disabled={loading}
-          title="Refresh now"
-        >
-          <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
-        </Button>
       </div>
 
       <CaseDetail 
         caseData={caseData} 
         providers={providers}
-        currentUser={currentUser}
-        onRefresh={refresh}
+        currentUser={initialCurrentUser}
+        onRefresh={fetchLatestData}
       />
     </div>
   )

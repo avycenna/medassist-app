@@ -4,6 +4,7 @@ import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
+import { Badge } from "@/components/ui/badge"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -21,11 +22,16 @@ import {
   LogOut,
   User as UserIcon,
   Menu,
-  X
+  X,
+  Bell
 } from "lucide-react"
 import { logout } from "@/lib/actions/auth"
 import type { User } from "@/lib/types"
-import { useState } from "react"
+import { useState, useEffect } from "react"
+import { useUnreadCount } from "@/hooks/use-unread-count"
+import { useNotification } from "@/hooks/use-notification"
+import { NotificationDropdown } from "@/components/ui/notification-dropdown"
+import { toast } from "sonner"
 
 interface DashboardNavProps {
   user: User
@@ -47,6 +53,21 @@ export function DashboardNav({ user }: DashboardNavProps) {
   const pathname = usePathname()
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const links = user.role === "OWNER" ? ownerLinks : providerLinks
+  const { unreadCount } = useUnreadCount()
+  const { isSupported, permission, requestPermission } = useNotification()
+  const [notificationPrompted, setNotificationPrompted] = useState(false)
+
+  // Request notification permission on first load
+  useEffect(() => {
+    if (isSupported && permission === "default" && !notificationPrompted) {
+      setNotificationPrompted(true)
+      requestPermission().then((granted) => {
+        if (granted) {
+          toast.success("Notifications enabled")
+        }
+      })
+    }
+  }, [isSupported, permission, notificationPrompted, requestPermission])
 
   return (
     <header className="sticky top-0 z-50 w-full border-b border-border bg-card">
@@ -89,6 +110,11 @@ export function DashboardNav({ user }: DashboardNavProps) {
 
           {/* User Menu */}
           <div className="flex items-center gap-2">
+            <NotificationDropdown 
+              unreadCount={unreadCount} 
+              onCountChange={(count) => {}} 
+            />
+
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" className="flex items-center gap-2">

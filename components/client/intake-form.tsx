@@ -6,9 +6,10 @@ import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { Textarea } from "@/components/ui/textarea"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Loader2 } from "lucide-react"
-import { completeIntakeForm } from "@/lib/actions/chat"
+import { submitIntakeForm } from "@/lib/actions/chat"
 
 interface IntakeFormProps {
   token: string
@@ -30,10 +31,14 @@ export function IntakeForm({ token, onComplete }: IntakeFormProps) {
       lastName: formData.get("lastName") as string,
       email: formData.get("email") as string,
       phone: formData.get("phone") as string,
+      dob: formData.get("dob") as string,
+      address: formData.get("address") as string,
+      symptoms: formData.get("symptoms") as string,
+      medications: formData.get("medications") as string,
     }
 
     try {
-      await completeIntakeForm(token, data)
+      await submitIntakeForm(token, data)
       onComplete({ firstName: data.firstName, lastName: data.lastName })
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to submit form")
@@ -100,6 +105,50 @@ export function IntakeForm({ token, onComplete }: IntakeFormProps) {
         <p className="text-xs text-muted-foreground">
           We may call you regarding your case if needed.
         </p>
+      </div>
+
+      <div className="space-y-2">
+        <Label htmlFor="dob" className="text-foreground">Date of Birth</Label>
+        <Input
+          id="dob"
+          name="dob"
+          type="date"
+          required
+          className="bg-background"
+        />
+      </div>
+
+      <div className="space-y-2">
+        <Label htmlFor="address" className="text-foreground">Address</Label>
+        <Input
+          id="address"
+          name="address"
+          placeholder="123 Main St, City, State, ZIP"
+          required
+          className="bg-background"
+        />
+      </div>
+
+      <div className="space-y-2">
+        <Label htmlFor="symptoms" className="text-foreground">Current Symptoms</Label>
+        <Textarea
+          id="symptoms"
+          name="symptoms"
+          placeholder="Describe your symptoms..."
+          required
+          className="bg-background min-h-[100px]"
+        />
+      </div>
+
+      <div className="space-y-2">
+        <Label htmlFor="medications" className="text-foreground">Current Medications</Label>
+        <Textarea
+          id="medications"
+          name="medications"
+          placeholder="List any medications you are currently taking (or write 'None')"
+          required
+          className="bg-background"
+        />
       </div>
 
       <div className="pt-4">

@@ -105,7 +105,11 @@ export function ClientPortal({ token, intakeCompleted, caseInfo, clientInfo }: C
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <ClientChat token={token} clientName={`${client?.firstName || ""} ${client?.lastName || ""}`} />
+          <ClientChat 
+            token={token} 
+            clientName={`${client?.firstName || ""} ${client?.lastName || ""}`}
+            caseId={caseInfo?.id || ""}
+          />
         </CardContent>
       </Card>
     </div>

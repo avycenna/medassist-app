@@ -8,10 +8,13 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Textarea } from "@/components/ui/textarea"
 import { ScrollArea } from "@/components/ui/scroll-area"
-import { Send, Loader2, MessageCircle } from "lucide-react"
-import { sendMessage, getCaseMessages } from "@/lib/actions/chat"
+import { Send, Loader2, MessageCircle, Wifi, WifiOff } from "lucide-react"
+import { markCaseMessagesAsRead } from "@/lib/actions/chat"
 import { cn } from "@/lib/utils"
 import type { User, SenderType } from "@/lib/types"
+import { useSocket } from "@/contexts/socket-context"
+import { useNotification } from "@/hooks/use-notification"
+import { toast } from "sonner"
 
 interface Message {
   id: string
@@ -35,9 +38,10 @@ export function ChatPanel({ caseId, messages: initialMessages, currentUser, isCl
   const [messages, setMessages] = useState<Message[]>(initialMessages)
   const [newMessage, setNewMessage] = useState("")
   const [sending, setSending] = useState(false)
-  const [refreshing, setRefreshing] = useState(false)
   const scrollAreaRef = useRef<HTMLDivElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
+  const { isConnected, joinCase, leaveCase, sendMessage: wsSendMessage, onMessage } = useSocket()
+  const { showNotification } = useNotification()
 
   // Scroll to bottom when messages change
   useEffect(() => {
@@ -46,38 +50,70 @@ export function ChatPanel({ caseId, messages: initialMessages, currentUser, isCl
     }
   }, [messages])
 
-  // Poll for new messages
+  // Join case on mount and leave on unmount
   useEffect(() => {
-    const interval = setInterval(async () => {
-      if (!refreshing && !sending) {
-        setRefreshing(true)
-        try {
-          const newMessages = await getCaseMessages(caseId)
-          setMessages(newMessages)
-        } catch {
-          // Silently fail - user might have navigated away
-        } finally {
-          setRefreshing(false)
-        }
-      }
-    }, 5000) // Poll every 5 seconds
+    joinCase(caseId)
+    
+    // Mark all messages as read when viewing the chat
+    markCaseMessagesAsRead(caseId).catch(console.error)
 
-    return () => clearInterval(interval)
-  }, [caseId, refreshing, sending])
+    return () => {
+      leaveCase(caseId)
+    }
+  }, [caseId, joinCase, leaveCase])
+
+  // Listen for WebSocket messages
+  useEffect(() => {
+    const unsubscribe = onMessage((data: any) => {
+      const { type, payload } = data
+
+      switch (type) {
+        case "message:new":
+          if (payload.caseId === caseId) {
+            setMessages((prev) => {
+              // Check if message already exists
+              if (prev.some((m) => m.id === payload.message.id)) {
+                return prev
+              }
+              return [...prev, payload.message]
+            })
+            
+            // Mark as read automatically
+            markCaseMessagesAsRead(caseId).catch(console.error)
+            
+            onRefresh?.()
+            
+            if (payload.message.sender?.id !== currentUser.id && payload.message.senderId !== currentUser.id) {
+              toast.success("New message received")
+            }
+          }
+          break
+
+        case "joined:case":
+          console.log("[*] Joined case:", payload.caseId)
+          break
+
+        case "error":
+          toast.error(payload.message || "An error occurred")
+          break
+      }
+    })
+
+    return unsubscribe
+  }, [caseId, currentUser.id, onMessage, onRefresh])
 
   async function handleSend() {
     if (!newMessage.trim() || sending) return
 
     setSending(true)
     try {
-      const message = await sendMessage(caseId, newMessage.trim())
-      setMessages((prev) => [...prev, message])
+      // Send via WebSocket
+      wsSendMessage(caseId, newMessage.trim())
       setNewMessage("")
       textareaRef.current?.focus()
-      // Trigger parent refresh to update case data
-      onRefresh?.()
     } catch (error) {
       console.error("[*] Failed to send message:", error)
+      toast.error("Failed to send message")
     } finally {
       setSending(false)
     }
@@ -107,9 +143,13 @@ export function ChatPanel({ caseId, messages: initialMessages, currentUser, isCl
           <MessageCircle className="h-4 w-4 text-muted-foreground" />
           <CardTitle className="text-foreground">Case Communication</CardTitle>
         </div>
-        {refreshing && (
-          <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
-        )}
+        <div className="flex items-center gap-2">
+          {isConnected ? (
+            <Wifi className="h-4 w-4 text-green-500" />
+          ) : (
+            <WifiOff className="h-4 w-4 text-red-500" />
+          )}
+        </div>
       </CardHeader>
       <CardContent className="space-y-4">
         {/* Messages */}

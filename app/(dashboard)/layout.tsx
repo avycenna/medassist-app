@@ -3,6 +3,7 @@ import { redirect } from "next/navigation"
 import { getSession } from "@/lib/auth"
 import { DashboardNav } from "@/components/dashboard/nav"
 import { SocketProvider } from "@/contexts/socket-context"
+import { GlobalNotificationListener } from "@/components/dashboard/global-notification-listener"
 
 export default async function DashboardLayout({
   children,
@@ -17,6 +18,7 @@ export default async function DashboardLayout({
   
   return (
     <SocketProvider>
+      <GlobalNotificationListener />
       <div className="min-h-screen bg-background">
         <DashboardNav user={session.user} />
         <main className="container mx-auto px-4 py-6 max-w-7xl">

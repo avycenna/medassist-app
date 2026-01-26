@@ -1,16 +1,14 @@
 "use client"
 
-import { useCallback } from "react"
+import { useState, useEffect, useCallback } from "react"
+import { useSocket } from "@/contexts/socket-context"
 import { ProvidersTable } from "./providers-table"
-import { useRealtime } from "@/hooks/use-realtime"
-import { Loader2, RefreshCw } from "lucide-react"
-import { Button } from "@/components/ui/button"
 
 interface Provider {
   id: string
   name: string
   email: string
-  username: string | null
+  role: string
   createdAt: Date
   _count: {
     assignedCases: number
@@ -24,52 +22,33 @@ interface RealtimeProvidersTableProps {
 export function RealtimeProvidersTable({
   initialProviders,
 }: RealtimeProvidersTableProps) {
-  const fetcher = useCallback(async () => {
-    const response = await fetch("/api/providers", { cache: "no-store" })
-    if (!response.ok) {
-      throw new Error("Failed to fetch providers")
+  const [providers, setProviders] = useState<Provider[]>(initialProviders)
+  const { onMessage } = useSocket()
+
+  const fetchLatestData = useCallback(async () => {
+    try {
+      const response = await fetch("/api/providers", { cache: "no-store" })
+      if (response.ok) {
+        const data = await response.json()
+        setProviders(data.providers.map((p: any) => ({
+          ...p,
+          createdAt: new Date(p.createdAt),
+        })))
+      }
+    } catch (error) {
+      console.error("Failed to fetch providers:", error)
     }
-    const data = await response.json()
-    return data.providers.map((p: any) => ({
-      ...p,
-      createdAt: new Date(p.createdAt),
-    }))
   }, [])
 
-  const { data, loading, refresh } = useRealtime({
-    fetcher,
-    interval: 5000, // Refresh every 5 seconds
-  })
+  useEffect(() => {
+    const unsubscribe = onMessage((data: any) => {
+      if (data.type === "provider:updated" || data.type === "providers:updated" || data.type === "case:updated") {
+        fetchLatestData()
+      }
+    })
 
-  const providers = data ?? initialProviders
+    return unsubscribe
+  }, [onMessage, fetchLatestData])
 
-  return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-end gap-2">
-        <div className="flex items-center text-sm text-muted-foreground">
-          {loading ? (
-            <>
-              <Loader2 className="h-3 w-3 mr-1.5 animate-spin" />
-              <span>Updating...</span>
-            </>
-          ) : (
-            <>
-              <div className="h-2 w-2 mr-1.5 rounded-full bg-green-500 animate-pulse" />
-              <span>Live</span>
-            </>
-          )}
-        </div>
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={() => refresh()}
-          disabled={loading}
-          title="Refresh now"
-        >
-          <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
-        </Button>
-      </div>
-      <ProvidersTable providers={providers} />
-    </div>
-  )
+  return <ProvidersTable providers={providers} onRefresh={fetchLatestData} />
 }

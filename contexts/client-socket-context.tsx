@@ -2,47 +2,25 @@
 
 import React, { createContext, useContext, useEffect, useState, useCallback, useRef } from "react"
 
-interface SocketContextType {
+interface ClientSocketContextType {
   isConnected: boolean
-  joinCase: (caseId: string) => void
+  joinCase: (caseId: string, token: string) => void
   leaveCase: (caseId: string) => void
-  sendMessage: (caseId: string, content: string) => void
-  markMessageAsRead: (messageId: string, caseId: string) => void
+  sendMessage: (token: string, content: string) => void
   onMessage: (callback: (data: any) => void) => () => void
 }
 
-const SocketContext = createContext<SocketContextType | null>(null)
+const ClientSocketContext = createContext<ClientSocketContextType | null>(null)
 
-export function SocketProvider({ children }: { children: React.ReactNode }) {
+export function ClientSocketProvider({ children }: { children: React.ReactNode }) {
   const [isConnected, setIsConnected] = useState(false)
-  const [session, setSession] = useState<any>(null)
   const wsRef = useRef<WebSocket | null>(null)
   const messageHandlersRef = useRef<Set<(data: any) => void>>(new Set())
   const reconnectTimeoutRef = useRef<NodeJS.Timeout>()
-  const pollIntervalRef = useRef<NodeJS.Timeout>()
   const reconnectAttemptsRef = useRef(0)
   const maxReconnectAttempts = 5
 
-  // Get session on mount
   useEffect(() => {
-    async function fetchSession() {
-      try {
-        const response = await fetch("/api/auth/session")
-        if (response.ok) {
-          const data = await response.json()
-          setSession(data)
-        }
-      } catch (error) {
-        console.error("[*] Failed to fetch session:", error)
-      }
-    }
-    fetchSession()
-  }, [])
-
-  // WebSocket connection
-  useEffect(() => {
-    if (!session?.user) return
-
     function connect() {
       const protocol = window.location.protocol === "https:" ? "wss:" : "ws:"
       const wsUrl = `${protocol}//${window.location.host}/api/ws`
@@ -51,20 +29,11 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
       wsRef.current = ws
 
       ws.addEventListener("open", () => {
-        console.log("WebSocket connected")
         setIsConnected(true)
         reconnectAttemptsRef.current = 0
-
-        ws.send(
-          JSON.stringify({
-            type: "auth",
-            payload: { userId: session.user.id },
-          })
-        )
       })
 
       ws.addEventListener("close", () => {
-        console.log("WebSocket disconnected")
         setIsConnected(false)
 
         if (reconnectAttemptsRef.current < maxReconnectAttempts) {
@@ -90,34 +59,15 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
 
     connect()
 
-    pollIntervalRef.current = setInterval(async () => {
-      try {
-        const response = await fetch("/api/ws/broadcast")
-        if (response.ok) {
-          const { broadcasts } = await response.json()
-          broadcasts.forEach((broadcast: any) => {
-            messageHandlersRef.current.forEach((handler) => 
-              handler({ type: broadcast.event, payload: broadcast.data })
-            )
-          })
-        }
-      } catch (error) {
-        console.error("Error polling broadcasts:", error)
-      }
-    }, 2000)
-
     return () => {
       if (reconnectTimeoutRef.current) {
         clearTimeout(reconnectTimeoutRef.current)
-      }
-      if (pollIntervalRef.current) {
-        clearInterval(pollIntervalRef.current)
       }
       if (wsRef.current) {
         wsRef.current.close()
       }
     }
-  }, [session])
+  }, [])
 
   const send = useCallback(
     (data: any) => {
@@ -129,8 +79,8 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
   )
 
   const joinCase = useCallback(
-    (caseId: string) => {
-      send({ type: "join:case", payload: { caseId } })
+    (caseId: string, token: string) => {
+      send({ type: "join:case:client", payload: { caseId, token } })
     },
     [send]
   )
@@ -143,15 +93,8 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
   )
 
   const sendMessage = useCallback(
-    (caseId: string, content: string) => {
-      send({ type: "message:send", payload: { caseId, content } })
-    },
-    [send]
-  )
-
-  const markMessageAsRead = useCallback(
-    (messageId: string, caseId: string) => {
-      send({ type: "message:markRead", payload: { messageId, caseId } })
+    (token: string, content: string) => {
+      send({ type: "message:send:client", payload: { token, content } })
     },
     [send]
   )
@@ -164,25 +107,24 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
   }, [])
 
   return (
-    <SocketContext.Provider
+    <ClientSocketContext.Provider
       value={{
         isConnected,
         joinCase,
         leaveCase,
         sendMessage,
-        markMessageAsRead,
         onMessage,
       }}
     >
       {children}
-    </SocketContext.Provider>
+    </ClientSocketContext.Provider>
   )
 }
 
-export function useSocket() {
-  const context = useContext(SocketContext)
+export function useClientSocket() {
+  const context = useContext(ClientSocketContext)
   if (!context) {
-    throw new Error("useSocket must be used within a SocketProvider")
+    throw new Error("useClientSocket must be used within a ClientSocketProvider")
   }
   return context
 }

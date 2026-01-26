@@ -22,8 +22,18 @@ import {
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { StatusBadge } from "./status-badge"
-import { Eye, Search, Filter, Link as LinkIcon, Loader2 } from "lucide-react"
-import { assignCaseToProvider, updateCaseStatus, generateMagicLinkForCase } from "@/lib/actions/cases"
+import { Eye, Search, Filter, Link as LinkIcon, Loader2, Archive, ArchiveRestore, Trash2 } from "lucide-react"
+import { assignCaseToProvider, updateCaseStatus, generateMagicLinkForCase, archiveCase, unarchiveCase, deleteCase } from "@/lib/actions/cases"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 import type { CaseStatus } from "@/lib/types"
 import {
   Dialog,
@@ -41,6 +51,8 @@ interface CaseWithProvider {
   status: CaseStatus
   assistanceType: string | null
   createdAt: Date
+  isArchived: boolean
+  deletedAt: Date | null
   assignedTo: {
     id: string
     name: string
@@ -76,6 +88,10 @@ export function CasesTable({ cases, providers = [], isOwner = false, onRefresh }
   const [magicLinkDialog, setMagicLinkDialog] = useState<{ open: boolean; url: string }>({
     open: false,
     url: "",
+  })
+  const [deleteDialog, setDeleteDialog] = useState<{ open: boolean; caseId: string | null }>({
+    open: false,
+    caseId: null,
   })
 
   const filteredCases = cases.filter((c) => {
@@ -122,12 +138,52 @@ export function CasesTable({ cases, providers = [], isOwner = false, onRefresh }
       const result = await generateMagicLinkForCase(caseId)
       setMagicLinkDialog({ open: true, url: result.url })
       toast.success("Magic link generated")
-      // Trigger realtime refresh
       onRefresh?.()
     } catch (error) {
       toast.error("Failed to generate magic link")
     } finally {
       setLoading(null)
+    }
+  }
+
+  async function handleArchive(caseId: string) {
+    setLoading(caseId)
+    try {
+      await archiveCase(caseId)
+      toast.success("Case archived")
+      onRefresh?.()
+    } catch (error) {
+      toast.error("Failed to archive case")
+    } finally {
+      setLoading(null)
+    }
+  }
+
+  async function handleUnarchive(caseId: string) {
+    setLoading(caseId)
+    try {
+      await unarchiveCase(caseId)
+      toast.success("Case unarchived")
+      onRefresh?.()
+    } catch (error) {
+      toast.error("Failed to unarchive case")
+    } finally {
+      setLoading(null)
+    }
+  }
+
+  async function handleDelete() {
+    if (!deleteDialog.caseId) return
+    setLoading(deleteDialog.caseId)
+    try {
+      await deleteCase(deleteDialog.caseId)
+      toast.success("Case deleted")
+      onRefresh?.()
+    } catch (error) {
+      toast.error("Failed to delete case")
+    } finally {
+      setLoading(null)
+      setDeleteDialog({ open: false, caseId: null })
     }
   }
 
@@ -247,21 +303,53 @@ export function CasesTable({ cases, providers = [], isOwner = false, onRefresh }
                     </TableCell>
                   )}
                   <TableCell className="text-right">
-                    <div className="flex items-center justify-end gap-2">
+                    <div className="flex items-center justify-end gap-1">
                       {isOwner && (
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => handleGenerateMagicLink(c.id)}
-                          disabled={loading === c.id}
-                          title="Generate magic link"
-                        >
-                          {loading === c.id ? (
-                            <Loader2 className="h-4 w-4 animate-spin" />
+                        <>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => handleGenerateMagicLink(c.id)}
+                            disabled={loading === c.id}
+                            title="Generate magic link"
+                          >
+                            {loading === c.id ? (
+                              <Loader2 className="h-4 w-4 animate-spin" />
+                            ) : (
+                              <LinkIcon className="h-4 w-4" />
+                            )}
+                          </Button>
+                          {c.isArchived ? (
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => handleUnarchive(c.id)}
+                              disabled={loading === c.id}
+                              title="Unarchive case"
+                            >
+                              <ArchiveRestore className="h-4 w-4" />
+                            </Button>
                           ) : (
-                            <LinkIcon className="h-4 w-4" />
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => handleArchive(c.id)}
+                              disabled={loading === c.id}
+                              title="Archive case"
+                            >
+                              <Archive className="h-4 w-4" />
+                            </Button>
                           )}
-                        </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => setDeleteDialog({ open: true, caseId: c.id })}
+                            disabled={loading === c.id}
+                            title="Delete case"
+                          >
+                            <Trash2 className="h-4 w-4 text-destructive" />
+                          </Button>
+                        </>
                       )}
                       <Button variant="ghost" size="icon" asChild>
                         <Link href={`/dashboard/cases/${c.id}`}>
@@ -278,7 +366,6 @@ export function CasesTable({ cases, providers = [], isOwner = false, onRefresh }
         </Table>
       </div>
 
-      {/* Magic Link Dialog */}
       <Dialog open={magicLinkDialog.open} onOpenChange={(open) => setMagicLinkDialog({ ...magicLinkDialog, open })}>
         <DialogContent>
           <DialogHeader>
@@ -294,6 +381,7 @@ export function CasesTable({ cases, providers = [], isOwner = false, onRefresh }
             <Button
               onClick={() => {
                 navigator.clipboard.writeText(magicLinkDialog.url)
+                toast.success("Link copied to clipboard")
               }}
               className="w-full"
             >
@@ -302,6 +390,23 @@ export function CasesTable({ cases, providers = [], isOwner = false, onRefresh }
           </div>
         </DialogContent>
       </Dialog>
+
+      <AlertDialog open={deleteDialog.open} onOpenChange={(open) => setDeleteDialog({ ...deleteDialog, open })}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Case</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete this case? This action will soft-delete the case and it can be recovered from the database if needed.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }

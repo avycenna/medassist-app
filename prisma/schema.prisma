@@ -101,10 +101,15 @@ model Case {
   
   // Source information
   source          String         @default("EMAIL")
-  rawEmailContent String?        // Full original email content
+  rawEmailContent String?
   emailSubject    String?
   emailFrom       String?
   emailReceivedAt DateTime?
+  
+  // Archive and deletion
+  isArchived      Boolean        @default(false)
+  archivedAt      DateTime?
+  deletedAt       DateTime?
   
   // Timestamps
   createdAt       DateTime       @default(now())
@@ -118,6 +123,8 @@ model Case {
   @@index([status])
   @@index([assignedToId])
   @@index([createdAt])
+  @@index([isArchived])
+  @@index([deletedAt])
 }
 
 // Magic link for client access

@@ -4,12 +4,24 @@ import prisma from "@/lib/prisma"
 import { getSession, requireRole, createMagicLink } from "@/lib/auth"
 import { revalidateTag } from "next/cache"
 import type { CaseStatus, AssistanceType } from "@/lib/types"
+import { broadcastToClients } from "@/lib/websocket-broadcast"
 
 // Get all cases (for owner)
-export async function getAllCases() {
+export async function getAllCases(includeArchived = false, includeDeleted = false) {
   await requireRole(["OWNER"])
+
+  const where: any = {}
   
+  if (!includeArchived) {
+    where.isArchived = false
+  }
+  
+  if (!includeDeleted) {
+    where.deletedAt = null
+  }
+
   const cases = await prisma.case.findMany({
+    where,
     include: {
       assignedTo: {
         select: { id: true, name: true, email: true },
@@ -17,22 +29,31 @@ export async function getAllCases() {
     },
     orderBy: { createdAt: "desc" },
   })
-  
+
   return cases
 }
 
 // Get cases for provider (only assigned)
-export async function getProviderCases() {
+export async function getProviderCases(includeArchived = false) {
   const session = await getSession()
   if (!session || session.user.role !== "PROVIDER") {
     throw new Error("Unauthorized")
   }
+
+  const where: any = { 
+    assignedToId: session.user.id,
+    deletedAt: null,
+  }
   
+  if (!includeArchived) {
+    where.isArchived = false
+  }
+
   const cases = await prisma.case.findMany({
-    where: { assignedToId: session.user.id },
+    where,
     orderBy: { createdAt: "desc" },
   })
-  
+
   return cases
 }
 
@@ -149,6 +170,8 @@ export async function assignCaseToProvider(caseId: string, providerId: string | 
   ])
   
   revalidateTag("cases", "max")
+  await broadcastToClients("case:updated", { caseId })
+  await broadcastToClients("dashboard:updated", {})
   return updatedCase
 }
 
@@ -167,8 +190,8 @@ export async function getDashboardStats() {
   if (!session) throw new Error("Unauthorized")
   
   const whereClause = session.user.role === "PROVIDER" 
-    ? { assignedToId: session.user.id }
-    : {}
+    ? { assignedToId: session.user.id, isArchived: false, deletedAt: null }
+    : { isArchived: false, deletedAt: null }
   
   const [pending, assigned, inProgress, completed, cancelled, total] = await Promise.all([
     prisma.case.count({ where: { ...whereClause, status: "PENDING" } }),
@@ -214,6 +237,68 @@ export async function createCase(data: {
   
   revalidateTag("cases", "max")
   return newCase
+}
+
+export async function archiveCase(caseId: string) {
+  await requireRole(["OWNER"])
+
+  const updatedCase = await prisma.case.update({
+    where: { id: caseId },
+    data: {
+      isArchived: true,
+      archivedAt: new Date(),
+    },
+  })
+
+  revalidateTag("cases")
+  broadcastToClients("case:updated", { caseId })
+  broadcastToClients("dashboard:updated", {})
+  return updatedCase
+}
+
+export async function unarchiveCase(caseId: string) {
+  await requireRole(["OWNER"])
+
+  const updatedCase = await prisma.case.update({
+    where: { id: caseId },
+    data: {
+      isArchived: false,
+      archivedAt: null,
+    },
+  })
+
+  revalidateTag("cases")
+  broadcastToClients("case:updated", { caseId })
+  broadcastToClients("dashboard:updated", {})
+  return updatedCase
+}
+
+export async function deleteCase(caseId: string) {
+  await requireRole(["OWNER"])
+
+  const updatedCase = await prisma.case.update({
+    where: { id: caseId },
+    data: {
+      deletedAt: new Date(),
+    },
+  })
+
+  revalidateTag("cases")
+  broadcastToClients("case:deleted", { caseId })
+  broadcastToClients("dashboard:updated", {})
+  return updatedCase
+}
+
+export async function permanentlyDeleteCase(caseId: string) {
+  await requireRole(["OWNER"])
+
+  await prisma.case.delete({
+    where: { id: caseId },
+  })
+
+  revalidateTag("cases")
+  broadcastToClients("case:deleted", { caseId })
+  broadcastToClients("dashboard:updated", {})
 }
 
 // Get all providers

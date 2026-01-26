@@ -4,22 +4,30 @@ import prisma from "@/lib/prisma"
 import { getSession, validateMagicLink, hashToken } from "@/lib/auth"
 import { revalidateTag } from "next/cache"
 import type { SenderType } from "@/lib/types"
+import { broadcastToClients } from "@/lib/websocket-broadcast"
+import crypto from "crypto"
 
-// Send message as authenticated user (Owner/Provider)
+const MESSAGE_SELECT = {
+  id: true,
+  content: true,
+  senderType: true,
+  createdAt: true,
+  sender: {
+    select: { id: true, name: true, role: true },
+  },
+}
+
 export async function sendMessage(caseId: string, content: string) {
   const session = await getSession()
   if (!session) throw new Error("Unauthorized")
   
-  // Verify access to case
   const caseData = await prisma.case.findUnique({
     where: { id: caseId },
+    select: { id: true, assignedToId: true },
   })
   
-  if (!caseData) {
-    throw new Error("Case not found")
-  }
+  if (!caseData) throw new Error("Case not found")
   
-  // Provider can only message on assigned cases
   if (session.user.role === "PROVIDER" && caseData.assignedToId !== session.user.id) {
     throw new Error("Unauthorized")
   }
@@ -37,12 +45,20 @@ export async function sendMessage(caseId: string, content: string) {
       },
     },
   })
+
+  await prisma.$executeRaw`
+    INSERT INTO "MessageRead" ("id", "messageId", "userId", "readAt")
+    SELECT ${crypto.randomUUID()}, ${message.id}, ${session.user.id}, NOW()
+    WHERE NOT EXISTS (
+      SELECT 1 FROM "MessageRead" 
+      WHERE "messageId" = ${message.id} AND "userId" = ${session.user.id}
+    )
+  `
   
   revalidateTag("messages", "max")
   return message
 }
 
-// Send message as client via magic link
 export async function sendClientMessage(token: string, content: string) {
   const validation = await validateMagicLink(token)
   
@@ -67,18 +83,16 @@ export async function sendClientMessage(token: string, content: string) {
   return message
 }
 
-// Get messages for a case (authenticated user)
 export async function getCaseMessages(caseId: string) {
   const session = await getSession()
   if (!session) throw new Error("Unauthorized")
   
   const caseData = await prisma.case.findUnique({
     where: { id: caseId },
+    select: { id: true, assignedToId: true },
   })
   
-  if (!caseData) {
-    throw new Error("Case not found")
-  }
+  if (!caseData) throw new Error("Case not found")
   
   if (session.user.role === "PROVIDER" && caseData.assignedToId !== session.user.id) {
     throw new Error("Unauthorized")
@@ -87,17 +101,12 @@ export async function getCaseMessages(caseId: string) {
   const messages = await prisma.message.findMany({
     where: { caseId },
     orderBy: { createdAt: "asc" },
-    include: {
-      sender: {
-        select: { id: true, name: true, role: true },
-      },
-    },
+    select: MESSAGE_SELECT,
   })
   
   return messages
 }
 
-// Get messages for client via magic link
 export async function getClientMessages(token: string) {
   const validation = await validateMagicLink(token)
   
@@ -108,130 +117,131 @@ export async function getClientMessages(token: string) {
   const messages = await prisma.message.findMany({
     where: { caseId: validation.magicLink.caseId },
     orderBy: { createdAt: "asc" },
-    include: {
-      sender: {
-        select: { id: true, name: true, role: true },
-      },
-    },
+    select: MESSAGE_SELECT,
   })
   
-  // Add client name for client messages
-  return messages.map(msg => ({
-    ...msg,
-    senderName: msg.senderType === "CLIENT" 
-      ? `${validation.magicLink!.clientFirstName} ${validation.magicLink!.clientLastName}`
-      : msg.sender?.name || "Staff",
-  }))
+  return messages
 }
 
-// Complete intake form
-export async function completeIntakeForm(
-  token: string,
-  data: { firstName: string; lastName: string; email: string; phone: string }
-) {
-  const tokenHash = await hashToken(token)
+export async function getClientCaseInfo(token: string) {
+  const hashedToken = await hashToken(token)
   
   const magicLink = await prisma.magicLink.findUnique({
-    where: { tokenHash },
-    include: { case: true },
+    where: { tokenHash: hashedToken },
+    select: {
+      id: true,
+      expiresAt: true,
+      intakeCompleted: true,
+      clientFirstName: true,
+      clientLastName: true,
+      case: {
+        select: {
+          id: true,
+          status: true,
+          assistanceType: true,
+        },
+      },
+    },
   })
   
   if (!magicLink) {
-    throw new Error("Invalid link")
-  }
-  
-  if (magicLink.revokedAt) {
-    throw new Error("This link has been revoked")
+    return { valid: false, error: "Link not found" }
   }
   
   if (magicLink.expiresAt && magicLink.expiresAt < new Date()) {
-    throw new Error("This link has expired")
-  }
-  
-  // Update magic link with client info
-  await prisma.magicLink.update({
-    where: { id: magicLink.id },
-    data: {
-      clientFirstName: data.firstName,
-      clientLastName: data.lastName,
-      clientEmail: data.email,
-      clientPhone: data.phone,
-      intakeCompleted: true,
-      usedAt: new Date(),
-    },
-  })
-  
-  // Update case with client info if not already set
-  if (!magicLink.case.firstName) {
-    await prisma.case.update({
-      where: { id: magicLink.caseId },
-      data: {
-        firstName: data.firstName,
-        lastName: data.lastName,
-        email: data.email,
-        phoneNumber: data.phone,
-        patientName: `${data.firstName} ${data.lastName}`,
-      },
-    })
-  }
-  
-  revalidateTag("cases", "max")
-  return { success: true }
-}
-
-// Get case info for client
-export async function getClientCaseInfo(token: string) {
-  const validation = await validateMagicLink(token)
-  
-  if (!validation.valid || !validation.magicLink) {
-    return { valid: false, error: validation.error }
+    return { valid: false, error: "Link has expired" }
   }
   
   return {
     valid: true,
-    intakeCompleted: validation.magicLink.intakeCompleted,
-    case: {
-      id: validation.case!.id,
-      status: validation.case!.status,
-      assistanceType: validation.case!.assistanceType,
+    intakeCompleted: magicLink.intakeCompleted,
+    case: magicLink.case,
+    client: {
+      firstName: magicLink.clientFirstName,
+      lastName: magicLink.clientLastName,
     },
-    client: validation.magicLink.intakeCompleted ? {
-      firstName: validation.magicLink.clientFirstName,
-      lastName: validation.magicLink.clientLastName,
-    } : null,
   }
 }
 
-// Mark message as read
+export async function submitIntakeForm(token: string, data: {
+  firstName: string
+  lastName: string
+  dob: string
+  address: string
+  phone: string
+  email: string
+  symptoms: string
+  medications: string
+}) {
+  const hashedToken = await hashToken(token)
+  
+  const magicLink = await prisma.magicLink.findUnique({
+    where: { tokenHash: hashedToken },
+    select: { id: true, expiresAt: true, intakeCompleted: true, caseId: true },
+  })
+  
+  if (!magicLink) throw new Error("Link not found")
+  if (magicLink.expiresAt && magicLink.expiresAt < new Date()) throw new Error("Link has expired")
+  if (magicLink.intakeCompleted) throw new Error("Intake already completed")
+  
+  await prisma.$transaction([
+    prisma.magicLink.update({
+      where: { id: magicLink.id },
+      data: {
+        intakeCompleted: true,
+        clientFirstName: data.firstName,
+        clientLastName: data.lastName,
+        clientEmail: data.email,
+        clientPhone: data.phone,
+      },
+    }),
+    prisma.case.update({
+      where: { id: magicLink.caseId },
+      data: {
+        patientName: `${data.firstName} ${data.lastName}`,
+        firstName: data.firstName,
+        lastName: data.lastName,
+        dob: new Date(data.dob),
+        address: data.address,
+        phoneNumber: data.phone,
+        email: data.email,
+        rawEmailContent: `Symptoms: ${data.symptoms}\n\nMedications: ${data.medications}`,
+        status: "PENDING",
+      },
+    }),
+  ])
+  
+  revalidateTag("cases", "max")
+  await broadcastToClients("case:updated", { caseId: magicLink.caseId })
+  await broadcastToClients("dashboard:updated", {})
+  return { success: true }
+}
+
 export async function markMessageAsRead(messageId: string) {
   const session = await getSession()
   if (!session) throw new Error("Unauthorized")
 
-  // Check if already read
-  const existingRead = await prisma.messageRead.findUnique({
-    where: {
-      messageId_userId: {
-        messageId,
-        userId: session.user.id,
-      },
-    },
-  })
+  const existing = await prisma.$queryRaw<Array<{ id: string }>>`
+    SELECT "id" FROM "MessageRead" 
+    WHERE "messageId" = ${messageId} AND "userId" = ${session.user.id}
+  `
 
-  if (existingRead) {
-    return { success: true, alreadyRead: true }
+  if (!existing || existing.length === 0) {
+    await prisma.$executeRaw`
+      INSERT INTO "MessageRead" ("id", "messageId", "userId", "readAt")
+      VALUES (${crypto.randomUUID()}, ${messageId}, ${session.user.id}, NOW())
+    `
+  } else {
+    await prisma.$executeRaw`
+      UPDATE "MessageRead" SET "readAt" = NOW()
+      WHERE "messageId" = ${messageId} AND "userId" = ${session.user.id}
+    `
   }
-
-  await prisma.messageRead.create({
-    data: {
-      messageId,
-      userId: session.user.id,
-    },
-  })
-
-  return { success: true, alreadyRead: false }
+  
+  revalidateTag("unread-messages", "max")
+  return { success: true }
 }
 
-// Mark all messages in a case as read
 export async function markCaseMessagesAsRead(caseId: string) {
   const session = await getSession()
   if (!session) throw new Error("Unauthorized")
@@ -241,89 +251,62 @@ export async function markCaseMessagesAsRead(caseId: string) {
     select: { id: true },
   })
 
-  for (const message of messages) {
-    await prisma.messageRead.upsert({
-      where: {
-        messageId_userId: {
-          messageId: message.id,
-          userId: session.user.id,
-        },
-      },
-      create: {
-        messageId: message.id,
-        userId: session.user.id,
-      },
-      update: {},
-    })
+  if (messages.length === 0) {
+    return { success: true }
   }
 
-  return { success: true, count: messages.length }
+  for (const message of messages) {
+    await prisma.$executeRaw`
+      INSERT INTO "MessageRead" ("id", "messageId", "userId", "readAt")
+      SELECT ${crypto.randomUUID()}, ${message.id}, ${session.user.id}, NOW()
+      WHERE NOT EXISTS (
+        SELECT 1 FROM "MessageRead" 
+        WHERE "messageId" = ${message.id} AND "userId" = ${session.user.id}
+      )
+    `
+  }
+
+  revalidateTag("unread-messages", "max")
+  return { success: true }
 }
 
-// Get unread message count for user
 export async function getUnreadMessageCount() {
   const session = await getSession()
   if (!session) throw new Error("Unauthorized")
 
-  // Get all cases the user has access to
-  const cases = session.user.role === "OWNER"
-    ? await prisma.case.findMany({ select: { id: true } })
-    : await prisma.case.findMany({
-        where: { assignedToId: session.user.id },
-        select: { id: true },
-      })
+  const result = await prisma.$queryRaw<[{ count: bigint }]>`
+    SELECT COUNT(DISTINCT m."id")::int as count
+    FROM "Message" m
+    INNER JOIN "Case" c ON c."id" = m."caseId"
+    LEFT JOIN "MessageRead" mr ON mr."messageId" = m."id" AND mr."userId" = ${session.user.id}
+    WHERE 
+      (${session.user.role === "OWNER"} OR c."assignedToId" = ${session.user.id})
+      AND m."senderId" != ${session.user.id}
+      AND mr."id" IS NULL
+  `
 
-  const caseIds = cases.map(c => c.id)
-
-  // Count messages in these cases that user hasn't read
-  const unreadCount = await prisma.message.count({
-    where: {
-      caseId: { in: caseIds },
-      senderId: { not: session.user.id }, // Don't count own messages
-      readBy: {
-        none: {
-          userId: session.user.id,
-        },
-      },
-    },
-  })
-
-  return unreadCount
+  return Number(result[0]?.count || 0)
 }
 
-// Get unread message count per case
 export async function getUnreadMessagesByCase() {
   const session = await getSession()
   if (!session) throw new Error("Unauthorized")
 
-  const cases = session.user.role === "OWNER"
-    ? await prisma.case.findMany({ select: { id: true } })
-    : await prisma.case.findMany({
-        where: { assignedToId: session.user.id },
-        select: { id: true },
-      })
-
-  const caseIds = cases.map(c => c.id)
-
-  const unreadByCaseRaw = await prisma.message.groupBy({
-    by: ['caseId'],
-    where: {
-      caseId: { in: caseIds },
-      senderId: { not: session.user.id },
-      readBy: {
-        none: {
-          userId: session.user.id,
-        },
-      },
-    },
-    _count: {
-      id: true,
-    },
-  })
+  const result = await prisma.$queryRaw<Array<{ caseId: string; count: bigint }>>`
+    SELECT m."caseId", COUNT(DISTINCT m."id")::int as count
+    FROM "Message" m
+    INNER JOIN "Case" c ON c."id" = m."caseId"
+    LEFT JOIN "MessageRead" mr ON mr."messageId" = m."id" AND mr."userId" = ${session.user.id}
+    WHERE 
+      (${session.user.role === "OWNER"} OR c."assignedToId" = ${session.user.id})
+      AND m."senderId" != ${session.user.id}
+      AND mr."id" IS NULL
+    GROUP BY m."caseId"
+  `
 
   const unreadByCase: Record<string, number> = {}
-  unreadByCaseRaw.forEach(item => {
-    unreadByCase[item.caseId] = item._count.id
+  result.forEach(item => {
+    unreadByCase[item.caseId] = Number(item.count)
   })
 
   return unreadByCase

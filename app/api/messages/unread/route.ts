@@ -10,8 +10,8 @@ export async function GET(request: Request) {
       const unreadByCase = await getUnreadMessagesByCase()
       return NextResponse.json({ unreadByCase })
     } else {
-      const count = await getUnreadMessageCount()
-      return NextResponse.json({ count })
+      const unreadCount = await getUnreadMessageCount()
+      return NextResponse.json({ unreadCount })
     }
   } catch (error) {
     console.error("Failed to get unread messages:", error)

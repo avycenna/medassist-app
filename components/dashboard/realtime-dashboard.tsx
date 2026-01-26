@@ -1,12 +1,11 @@
 "use client"
 
-import { useCallback } from "react"
-import { useRealtime } from "@/hooks/use-realtime"
+import { useState, useEffect, useCallback } from "react"
+import { useSocket } from "@/contexts/socket-context"
 import { StatsCards } from "@/components/dashboard/stats-cards"
 import { CasesTable } from "@/components/dashboard/cases-table"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Loader2, RefreshCw } from "lucide-react"
-import { Button } from "@/components/ui/button"
+import { Wifi, WifiOff } from "lucide-react"
 import type { CaseStatus } from "@/lib/types"
 
 interface DashboardStats {
@@ -52,37 +51,42 @@ export function RealtimeDashboard({
   initialProviders,
   isOwner,
 }: RealtimeDashboardProps) {
-  const fetchDashboardData = useCallback(async () => {
-    const response = await fetch("/api/dashboard", { cache: "no-store" })
-    if (!response.ok) {
-      throw new Error("Failed to fetch dashboard data")
-    }
-    const data = await response.json()
-    return {
-      stats: data.stats,
-      cases: data.cases.map((c: any) => ({
-        ...c,
-        createdAt: new Date(c.createdAt),
-      })),
-      providers: data.providers || [],
+  const [stats, setStats] = useState<DashboardStats>(initialStats)
+  const [cases, setCases] = useState<CaseWithProvider[]>(initialCases)
+  const [providers, setProviders] = useState<Provider[]>(initialProviders)
+  const { isConnected, onMessage } = useSocket()
+
+  const fetchLatestData = useCallback(async () => {
+    try {
+      const response = await fetch("/api/dashboard", { cache: "no-store" })
+      if (response.ok) {
+        const data = await response.json()
+        setStats(data.stats)
+        setCases(data.cases.map((c: any) => ({
+          ...c,
+          createdAt: new Date(c.createdAt),
+        })))
+        setProviders(data.providers || [])
+      }
+    } catch (error) {
+      console.error("Failed to fetch dashboard data:", error)
     }
   }, [])
 
-  const { data, loading, refresh } = useRealtime({
-    fetcher: fetchDashboardData,
-    interval: 3000, // Refresh every 3 seconds
-  })
+  useEffect(() => {
+    const unsubscribe = onMessage((data: any) => {
+      if (data.type === "dashboard:updated" || data.type === "case:updated") {
+        fetchLatestData()
+      }
+    })
 
-  const stats = data?.stats ?? initialStats
-  const cases = data?.cases ?? initialCases
-  const providers = data?.providers ?? initialProviders
+    return unsubscribe
+  }, [onMessage, fetchLatestData])
 
-  // Get recent cases (last 10)
   const recentCases = cases.slice(0, 10)
 
   return (
     <div className="space-y-8">
-      {/* Header */}
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-foreground">
@@ -94,36 +98,23 @@ export function RealtimeDashboard({
               : "View and manage your assigned cases."}
           </p>
         </div>
-        <div className="flex items-center gap-2">
-          <div className="flex items-center text-sm text-muted-foreground">
-            {loading ? (
-              <>
-                <Loader2 className="h-3 w-3 mr-1.5 animate-spin" />
-                <span>Updating...</span>
-              </>
-            ) : (
-              <>
-                <div className="h-2 w-2 mr-1.5 rounded-full bg-green-500 animate-pulse" />
-                <span>Live</span>
-              </>
-            )}
-          </div>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => refresh()}
-            disabled={loading}
-            title="Refresh now"
-          >
-            <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
-          </Button>
+        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+          {isConnected ? (
+            <>
+              <Wifi className="h-4 w-4 text-green-500" />
+              <span>Live</span>
+            </>
+          ) : (
+            <>
+              <WifiOff className="h-4 w-4 text-red-500" />
+              <span>Connecting...</span>
+            </>
+          )}
         </div>
       </div>
 
-      {/* Stats */}
       <StatsCards stats={stats} />
 
-      {/* Recent Cases */}
       <Card className="bg-card">
         <CardHeader>
           <CardTitle className="text-foreground">Recent Cases</CardTitle>
@@ -138,7 +129,7 @@ export function RealtimeDashboard({
             cases={recentCases} 
             providers={providers.map(p => ({ id: p.id, name: p.name, email: p.email }))}
             isOwner={isOwner}
-            onRefresh={refresh}
+            onRefresh={fetchLatestData}
           />
         </CardContent>
       </Card>
