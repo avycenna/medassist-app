@@ -1,0 +1,237 @@
+// Prisma Schema for Medical Assistant Management App
+// PostgreSQL database with full case management, auth, and chat support
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// User roles enum
+enum Role {
+  OWNER
+  PROVIDER
+}
+
+// Case status enum
+enum CaseStatus {
+  PENDING
+  ASSIGNED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
+// Type of assistance enum
+enum AssistanceType {
+  TELECONSULTATION
+  CLINIC_CONSULT
+  HOME_VISIT
+  EMERGENCY
+  OTHER
+}
+
+// Sender type for chat messages
+enum SenderType {
+  OWNER
+  PROVIDER
+  CLIENT
+}
+
+// User model for Owners and Providers
+model User {
+  id            String    @id @default(cuid())
+  email         String    @unique
+  username      String?   @unique
+  passwordHash  String
+  name          String
+  role          Role
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  // Relations
+  assignedCases          Case[]                   @relation("AssignedProvider")
+  messages               Message[]                @relation("UserMessages")
+  sessions               Session[]
+  readMessages           MessageRead[]
+  notificationPreference NotificationPreference?
+
+  @@index([email])
+  @@index([role])
+}
+
+// Session model for auth
+model Session {
+  id        String   @id @default(cuid())
+  userId    String
+  token     String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([token])
+  @@index([userId])
+}
+
+// Case model - core entity for medical cases
+model Case {
+  id              String         @id @default(cuid())
+  
+  // Patient information
+  patientName     String?
+  firstName       String?
+  lastName        String?
+  dob             DateTime?
+  address         String?
+  phoneNumber     String?
+  email           String?
+  nationality     String?
+  
+  assistanceType  AssistanceType?
+  
+  referenceNumber String?
+  availability    String?
+  
+  status          CaseStatus     @default(PENDING)
+  assignedToId    String?
+  assignedTo      User?          @relation("AssignedProvider", fields: [assignedToId], references: [id])
+  
+  // Source information
+  source          String         @default("EMAIL")
+  rawEmailContent String?        // Full original email content
+  emailSubject    String?
+  emailFrom       String?
+  emailReceivedAt DateTime?
+  
+  // Timestamps
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+
+  // Relations
+  messages        Message[]
+  magicLinks      MagicLink[]
+  statusHistory   StatusHistory[]
+
+  @@index([status])
+  @@index([assignedToId])
+  @@index([createdAt])
+}
+
+// Magic link for client access
+model MagicLink {
+  id          String    @id @default(cuid())
+  tokenHash   String    @unique  // Hashed token for security
+  caseId      String
+  case        Case      @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  
+  // Client information (filled after intake)
+  clientFirstName String?
+  clientLastName  String?
+  clientEmail     String?
+  clientPhone     String?
+  intakeCompleted Boolean   @default(false)
+  
+  // Token lifecycle
+  expiresAt   DateTime?
+  revokedAt   DateTime?
+  usedAt      DateTime?
+  createdAt   DateTime  @default(now())
+
+  @@index([tokenHash])
+  @@index([caseId])
+}
+
+// Chat messages
+model Message {
+  id          String     @id @default(cuid())
+  caseId      String
+  case        Case       @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  
+  content     String
+  senderType  SenderType
+  
+  // For OWNER/PROVIDER messages, link to user
+  senderId    String?
+  sender      User?      @relation("UserMessages", fields: [senderId], references: [id])
+  
+  // For CLIENT messages, link to magic link
+  magicLinkId String?
+  
+  createdAt   DateTime   @default(now())
+  
+  // Read tracking
+  readBy      MessageRead[]
+
+  @@index([caseId])
+  @@index([createdAt])
+}
+
+// Track which users have read which messages
+model MessageRead {
+  id        String   @id @default(cuid())
+  messageId String
+  message   Message  @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  readAt    DateTime @default(now())
+
+  @@unique([messageId, userId])
+  @@index([userId])
+  @@index([messageId])
+}
+
+// User notification preferences
+model NotificationPreference {
+  id                    String  @id @default(cuid())
+  userId                String  @unique
+  user                  User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  pushEnabled           Boolean @default(true)
+  emailEnabled          Boolean @default(true)
+  pushSubscription      String? // Web Push subscription JSON
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+}
+
+// Status history for case timeline
+model StatusHistory {
+  id          String     @id @default(cuid())
+  caseId      String
+  case        Case       @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  
+  fromStatus  CaseStatus?
+  toStatus    CaseStatus
+  changedBy   String?    // User ID who made the change
+  note        String?
+  
+  createdAt   DateTime   @default(now())
+
+  @@index([caseId])
+}
+
+// Email processing tracking
+model ProcessedEmail {
+  id          String   @id @default(cuid())
+  messageId   String   @unique  // Email message ID to prevent duplicates
+  subject     String?
+  from        String?
+  receivedAt  DateTime
+  processed   Boolean  @default(false)
+  caseId      String?  // If a case was created from this email
+  error       String?  // Any processing errors
+  createdAt   DateTime @default(now())
+
+  @@index([messageId])
+}
+
+// Email ingestion settings (for future UI configuration)
+model EmailSettings {
+  id          String   @id @default(cuid())
+  isActive    Boolean  @default(true)
+  lastChecked DateTime?
+  checkInterval Int    @default(60) // seconds
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
