@@ -11,7 +11,6 @@ const _geistMono = Geist_Mono({ subsets: ["latin"] });
 export const metadata: Metadata = {
   title: 'MedAssist - Medical Case Management',
   description: 'Production-ready medical assistant management platform for case tracking, provider coordination, and patient communication.',
-  generator: 'v0.app',
   icons: {
     icon: [
       {
