@@ -8,8 +8,8 @@
 import prisma from "./prisma"
 import { parseEmailForCase } from "./email-parser"
 import type { AssistanceType } from "./types"
+import { ImapFlow } from "imapflow"
 
-// Email data interface
 interface EmailData {
   messageId: string
   subject: string
@@ -18,22 +18,214 @@ interface EmailData {
   text: string
 }
 
-// Mock email fetcher for demonstration
-// In production, you would use a library like 'imap' or 'imapflow'
+export interface ConnectionTestResult {
+  success: boolean
+  message: string
+  details?: {
+    host?: string
+    port?: number
+    user?: string
+    tlsEnabled?: boolean
+    configured?: boolean
+  }
+  errors?: string[]
+}
+
+function validateEmailConfig(): { valid: boolean; errors: string[] } {
+  const errors: string[] = []
+  
+  if (!process.env.IMAP_HOST) {
+    errors.push("IMAP_HOST environment variable is not set")
+  }
+  if (!process.env.IMAP_PORT) {
+    errors.push("IMAP_PORT environment variable is not set")
+  }
+  if (!process.env.IMAP_USER) {
+    errors.push("IMAP_USER environment variable is not set")
+  }
+  if (!process.env.IMAP_PASSWORD) {
+    errors.push("IMAP_PASSWORD environment variable is not set")
+  }
+  
+  return {
+    valid: errors.length === 0,
+    errors,
+  }
+}
+
+export async function testEmailConnection(): Promise<ConnectionTestResult> {
+  const validation = validateEmailConfig()
+  
+  if (!validation.valid) {
+    return {
+      success: false,
+      message: "Email configuration is incomplete",
+      errors: validation.errors,
+      details: {
+        configured: false,
+      },
+    }
+  }
+  
+  const host = process.env.IMAP_HOST!
+  const port = parseInt(process.env.IMAP_PORT || "993")
+  const user = process.env.IMAP_USER!
+  const password = process.env.IMAP_PASSWORD!
+  const tlsEnabled = process.env.IMAP_TLS !== "false"
+  
+  const client = new ImapFlow({
+    host,
+    port,
+    secure: tlsEnabled,
+    auth: {
+      user,
+      pass: password,
+    },
+    logger: false,
+  })
+  
+  try {
+    await client.connect()
+    
+    const mailboxInfo = await client.mailboxOpen("INBOX")
+    
+    await client.logout()
+    
+    return {
+      success: true,
+      message: `Successfully connected to IMAP server. Mailbox has ${mailboxInfo.exists} messages.`,
+      details: {
+        host,
+        port,
+        user,
+        tlsEnabled,
+        configured: true,
+      },
+    }
+  } catch (error) {
+    return {
+      success: false,
+      message: "Failed to connect to IMAP server",
+      errors: [error instanceof Error ? error.message : "Unknown connection error"],
+      details: {
+        host,
+        port,
+        user,
+        tlsEnabled,
+        configured: true,
+      },
+    }
+  }
+}
+
 async function fetchNewEmails(): Promise<EmailData[]> {
-  // This is a placeholder that would be replaced with actual IMAP logic
-  // Using environment variables:
-  // - IMAP_HOST
-  // - IMAP_PORT
-  // - IMAP_USER
-  // - IMAP_PASSWORD
-  // - IMAP_TLS
+  const validation = validateEmailConfig()
   
-  console.log("[*] Email ingestion: Would connect to IMAP server")
-  console.log("[*] IMAP_HOST:", process.env.IMAP_HOST)
+  if (!validation.valid) {
+    throw new Error(`Email configuration error: ${validation.errors.join(", ")}`)
+  }
   
-  // Return empty array - in production this would fetch real emails
-  return []
+  const host = process.env.IMAP_HOST!
+  const port = parseInt(process.env.IMAP_PORT || "993")
+  const user = process.env.IMAP_USER!
+  const password = process.env.IMAP_PASSWORD!
+  const tlsEnabled = process.env.IMAP_TLS !== "false"
+  
+  console.log("[*] Connecting to IMAP server...")
+  console.log("[*] IMAP_HOST:", host)
+  console.log("[*] IMAP_PORT:", port)
+  console.log("[*] IMAP_USER:", user)
+  console.log("[*] IMAP_TLS:", tlsEnabled)
+  
+  const client = new ImapFlow({
+    host,
+    port,
+    secure: tlsEnabled,
+    auth: {
+      user,
+      pass: password,
+    },
+    logger: false,
+  })
+  
+  try {
+    await client.connect()
+    console.log("[*] Connected to IMAP server")
+    
+    await client.mailboxOpen("INBOX")
+    console.log("[*] Opened INBOX")
+    
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
+    
+    const searchCriteria = { 
+      seen: false,
+      since: today
+    }
+    
+    console.log(`[*] Searching for unread emails since ${today.toISOString()}`)
+    
+    const messages: EmailData[] = []
+    
+    for await (let message of client.fetch(searchCriteria, { 
+      envelope: true, 
+      source: true,
+      uid: true 
+    })) {
+      try {
+        if (!message.envelope) {
+          console.log("[*] Skipping message without envelope")
+          continue
+        }
+        
+        const messageId = message.envelope.messageId || `${message.uid}@${host}`
+        const subject = message.envelope.subject || "(No Subject)"
+        const from = message.envelope.from?.[0]?.address || "unknown@sender.com"
+        const date = message.envelope.date || new Date()
+        
+        const decoder = new TextDecoder("utf-8")
+        const sourceText = decoder.decode(message.source)
+        
+        let emailBody = ""
+        
+        const plainTextMatch = sourceText.match(/Content-Type: text\/plain[\s\S]*?\n\n([\s\S]*?)(?=\n--|\n\r\n--|\Z)/i)
+        if (plainTextMatch) {
+          emailBody = plainTextMatch[1].trim()
+        } else {
+          const lines = sourceText.split("\n")
+          let inBody = false
+          for (const line of lines) {
+            if (inBody) {
+              emailBody += line + "\n"
+            }
+            if (line.trim() === "") {
+              inBody = true
+            }
+          }
+        }
+        
+        messages.push({
+          messageId,
+          subject,
+          from,
+          date: new Date(date),
+          text: emailBody.trim(),
+        })
+        
+        console.log(`[*] Fetched email: ${subject} from ${from}`)
+      } catch (error) {
+        console.error("[*] Error processing email message:", error)
+      }
+    }
+    
+    await client.logout()
+    console.log(`[*] Disconnected from IMAP server. Fetched ${messages.length} unread emails.`)
+    
+    return messages
+  } catch (error) {
+    console.error("[*] IMAP connection error:", error)
+    throw error
+  }
 }
 
 /**
@@ -94,8 +286,6 @@ async function processEmail(email: EmailData): Promise<{ created: boolean; caseI
         phoneNumber: parsedData.phoneNumber,
         email: parsedData.email,
         nationality: parsedData.nationality,
-        symptoms: parsedData.symptoms,
-        symptomsRaw: parsedData.symptoms,
         assistanceType,
         referenceNumber: parsedData.referenceNumber,
         availability: parsedData.availability,
@@ -153,35 +343,80 @@ async function processEmail(email: EmailData): Promise<{ created: boolean; caseI
  * Main ingestion function - fetches and processes new emails
  */
 export async function runEmailIngestion(): Promise<{
+  success: boolean
   processed: number
   created: number
   errors: number
+  message?: string
+  errorDetails?: string[]
 }> {
   console.log("[*] Starting email ingestion...")
   
-  const emails = await fetchNewEmails()
-  
-  let processed = 0
-  let created = 0
-  let errors = 0
-  
-  for (const email of emails) {
-    const result = await processEmail(email)
-    processed++
-    
-    if (result.created) {
-      created++
-      console.log("[*] Created case from email:", result.caseId)
-    } else if (result.error) {
-      if (result.error !== "Not a medical case" && result.error !== "Email already processed") {
-        errors++
-      }
+  const validation = validateEmailConfig()
+  if (!validation.valid) {
+    return {
+      success: false,
+      processed: 0,
+      created: 0,
+      errors: validation.errors.length,
+      message: "Email configuration incomplete",
+      errorDetails: validation.errors,
     }
   }
   
-  console.log(`[*] Email ingestion complete: ${processed} processed, ${created} created, ${errors} errors`)
-  
-  return { processed, created, errors }
+  try {
+    const emails = await fetchNewEmails()
+    
+    let processed = 0
+    let created = 0
+    let errors = 0
+    const errorDetails: string[] = []
+    
+    for (const email of emails) {
+      try {
+        const result = await processEmail(email)
+        processed++
+        
+        if (result.created) {
+          created++
+          console.log("[*] Created case from email:", result.caseId)
+        } else if (result.error) {
+          if (result.error !== "Not a medical case" && result.error !== "Email already processed") {
+            errors++
+            errorDetails.push(`${email.subject}: ${result.error}`)
+          }
+        }
+      } catch (error) {
+        errors++
+        const errorMsg = error instanceof Error ? error.message : "Unknown error"
+        errorDetails.push(`${email.subject}: ${errorMsg}`)
+        console.error("[*] Error processing email:", error)
+      }
+    }
+    
+    console.log(`[*] Email ingestion complete: ${processed} processed, ${created} created, ${errors} errors`)
+    
+    return {
+      success: true,
+      processed,
+      created,
+      errors,
+      message: emails.length === 0 ? "No new emails found" : undefined,
+      errorDetails: errorDetails.length > 0 ? errorDetails : undefined,
+    }
+  } catch (error) {
+    const errorMsg = error instanceof Error ? error.message : "Unknown error"
+    console.error("[*] Fatal error during email ingestion:", error)
+    
+    return {
+      success: false,
+      processed: 0,
+      created: 0,
+      errors: 1,
+      message: "Failed to fetch emails from server",
+      errorDetails: [errorMsg],
+    }
+  }
 }
 
 /**

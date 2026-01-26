@@ -16,16 +16,17 @@ export async function GET() {
     
     const result = await runEmailIngestion()
     
-    return NextResponse.json({
-      success: true,
-      ...result,
-    })
+    return NextResponse.json(result)
   } catch (error) {
     console.error("[*] Email ingestion API error:", error)
-    return NextResponse.json(
-      { error: "Failed to run email ingestion" },
-      { status: 500 }
-    )
+    return NextResponse.json({
+      success: false,
+      processed: 0,
+      created: 0,
+      errors: 1,
+      message: "Failed to run email ingestion",
+      errorDetails: [error instanceof Error ? error.message : "Unknown error"],
+    }, { status: 500 })
   }
 }
 

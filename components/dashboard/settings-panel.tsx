@@ -1,12 +1,13 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Textarea } from "@/components/ui/textarea"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
+import { Badge } from "@/components/ui/badge"
 import { 
   Mail, 
   RefreshCw, 
@@ -14,7 +15,10 @@ import {
   CheckCircle2, 
   AlertCircle,
   FileText,
-  Database
+  Database,
+  Wifi,
+  WifiOff,
+  Settings
 } from "lucide-react"
 
 interface EmailStats {
@@ -31,13 +35,56 @@ interface SettingsPanelProps {
 
 export function SettingsPanel({ emailStats }: SettingsPanelProps) {
   const [ingesting, setIngesting] = useState(false)
-  const [ingestResult, setIngestResult] = useState<{ success: boolean; message: string } | null>(null)
+  const [ingestResult, setIngestResult] = useState<{ 
+    success: boolean
+    message: string
+    errors?: string[]
+    details?: any
+  } | null>(null)
   
   const [importing, setImporting] = useState(false)
   const [importResult, setImportResult] = useState<{ success: boolean; message: string; caseId?: string } | null>(null)
   const [emailText, setEmailText] = useState("")
   const [emailSubject, setEmailSubject] = useState("")
   const [emailFrom, setEmailFrom] = useState("")
+  
+  const [connectionStatus, setConnectionStatus] = useState<{
+    tested: boolean
+    connected: boolean
+    message: string
+    details?: any
+    errors?: string[]
+  } | null>(null)
+  const [testingConnection, setTestingConnection] = useState(false)
+
+  useEffect(() => {
+    testConnection()
+  }, [])
+
+  async function testConnection() {
+    setTestingConnection(true)
+    try {
+      const response = await fetch("/api/email/test-connection")
+      const data = await response.json()
+      
+      setConnectionStatus({
+        tested: true,
+        connected: data.success,
+        message: data.message,
+        details: data.details,
+        errors: data.errors,
+      })
+    } catch (error) {
+      setConnectionStatus({
+        tested: true,
+        connected: false,
+        message: "Failed to test connection",
+        errors: ["Network error or server unavailable"],
+      })
+    } finally {
+      setTestingConnection(false)
+    }
+  }
 
   async function handleTriggerIngestion() {
     setIngesting(true)
@@ -48,20 +95,26 @@ export function SettingsPanel({ emailStats }: SettingsPanelProps) {
       const data = await response.json()
       
       if (data.success) {
+        const errorMsg = data.errorDetails && data.errorDetails.length > 0 
+          ? ` (${data.errors} errors)`
+          : ""
         setIngestResult({
           success: true,
-          message: `Processed ${data.processed} emails, created ${data.created} cases`,
+          message: data.message || `Processed ${data.processed} emails, created ${data.created} cases${errorMsg}`,
+          errors: data.errorDetails,
         })
       } else {
         setIngestResult({
           success: false,
-          message: data.error || "Failed to run ingestion",
+          message: data.message || data.error || "Failed to run ingestion",
+          errors: data.errorDetails,
         })
       }
-    } catch {
+    } catch (error) {
       setIngestResult({
         success: false,
         message: "Failed to connect to ingestion service",
+        errors: [error instanceof Error ? error.message : "Network error"],
       })
     } finally {
       setIngesting(false)
@@ -151,19 +204,74 @@ export function SettingsPanel({ emailStats }: SettingsPanelProps) {
         </CardContent>
       </Card>
 
-      {/* Email Ingestion Trigger */}
       <Card className="bg-card">
         <CardHeader>
-          <div className="flex items-center gap-2">
-            <Mail className="h-5 w-5 text-primary" />
-            <CardTitle className="text-foreground">Email Ingestion</CardTitle>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Settings className="h-5 w-5 text-primary" />
+              <CardTitle className="text-foreground">Email Connection Status</CardTitle>
+            </div>
+            {connectionStatus && (
+              <Badge variant={connectionStatus.connected ? "default" : "destructive"}>
+                {connectionStatus.connected ? (
+                  <><Wifi className="h-3 w-3 mr-1" /> Connected</>
+                ) : (
+                  <><WifiOff className="h-3 w-3 mr-1" /> Not Connected</>
+                )}
+              </Badge>
+            )}
           </div>
           <CardDescription>
-            Manually trigger email ingestion to check for new cases.
-            Configure IMAP settings via environment variables.
+            IMAP email server connection configuration and status
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
+          {connectionStatus && (
+            <>
+              <Alert variant={connectionStatus.connected ? "default" : "destructive"}>
+                {connectionStatus.connected ? (
+                  <CheckCircle2 className="h-4 w-4" />
+                ) : (
+                  <AlertCircle className="h-4 w-4" />
+                )}
+                <AlertTitle>
+                  {connectionStatus.connected ? "Configuration Valid" : "Configuration Error"}
+                </AlertTitle>
+                <AlertDescription>
+                  <p className="mb-2">{connectionStatus.message}</p>
+                  {connectionStatus.details && connectionStatus.details.configured && (
+                    <div className="mt-2 space-y-1 text-xs font-mono">
+                      <p>Host: {connectionStatus.details.host}</p>
+                      <p>Port: {connectionStatus.details.port}</p>
+                      <p>User: {connectionStatus.details.user}</p>
+                      <p>TLS: {connectionStatus.details.tlsEnabled ? "Enabled" : "Disabled"}</p>
+                    </div>
+                  )}
+                  {connectionStatus.errors && connectionStatus.errors.length > 0 && (
+                    <ul className="mt-2 space-y-1 text-xs list-disc list-inside">
+                      {connectionStatus.errors.map((error, i) => (
+                        <li key={i}>{error}</li>
+                      ))}
+                    </ul>
+                  )}
+                </AlertDescription>
+              </Alert>
+              
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={testConnection} 
+                disabled={testingConnection}
+              >
+                {testingConnection ? (
+                  <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Testing...</>
+                ) : (
+                  <><RefreshCw className="mr-2 h-4 w-4" /> Retest Connection</>
+                )}
+              </Button>
+            </>
+          )}
+          
           <div className="bg-muted/50 p-4 rounded-md space-y-2 font-mono text-sm">
             <p className="text-muted-foreground">Required environment variables:</p>
             <ul className="text-xs space-y-1 text-foreground">
@@ -174,7 +282,20 @@ export function SettingsPanel({ emailStats }: SettingsPanelProps) {
               <li>IMAP_TLS - Enable TLS (true/false)</li>
             </ul>
           </div>
-          
+        </CardContent>
+      </Card>
+
+      <Card className="bg-card">
+        <CardHeader>
+          <div className="flex items-center gap-2">
+            <Mail className="h-5 w-5 text-primary" />
+            <CardTitle className="text-foreground">Email Ingestion</CardTitle>
+          </div>
+          <CardDescription>
+            Manually trigger email ingestion to check for new cases
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
           {ingestResult && (
             <Alert variant={ingestResult.success ? "default" : "destructive"}>
               {ingestResult.success ? (
@@ -182,12 +303,29 @@ export function SettingsPanel({ emailStats }: SettingsPanelProps) {
               ) : (
                 <AlertCircle className="h-4 w-4" />
               )}
-              <AlertTitle>{ingestResult.success ? "Success" : "Error"}</AlertTitle>
-              <AlertDescription>{ingestResult.message}</AlertDescription>
+              <AlertTitle>{ingestResult.success ? "Ingestion Complete" : "Ingestion Failed"}</AlertTitle>
+              <AlertDescription>
+                <p>{ingestResult.message}</p>
+                {ingestResult.errors && ingestResult.errors.length > 0 && (
+                  <details className="mt-2">
+                    <summary className="cursor-pointer text-xs font-semibold">
+                      View Error Details ({ingestResult.errors.length})
+                    </summary>
+                    <ul className="mt-1 space-y-1 text-xs list-disc list-inside">
+                      {ingestResult.errors.map((error, i) => (
+                        <li key={i}>{error}</li>
+                      ))}
+                    </ul>
+                  </details>
+                )}
+              </AlertDescription>
             </Alert>
           )}
           
-          <Button onClick={handleTriggerIngestion} disabled={ingesting}>
+          <Button 
+            onClick={handleTriggerIngestion} 
+            disabled={ingesting || (connectionStatus && !connectionStatus.connected)}
+          >
             {ingesting ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -200,6 +338,11 @@ export function SettingsPanel({ emailStats }: SettingsPanelProps) {
               </>
             )}
           </Button>
+          {connectionStatus && !connectionStatus.connected && (
+            <p className="text-xs text-destructive">
+              Fix connection errors before running ingestion
+            </p>
+          )}
         </CardContent>
       </Card>
 
