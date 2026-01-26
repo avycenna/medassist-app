@@ -2,7 +2,7 @@ import { NextResponse } from "next/server"
 import { getSession } from "@/lib/auth"
 import { getAllCases, getProviderCases } from "@/lib/actions/cases"
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
     const session = await getSession()
     
@@ -10,8 +10,13 @@ export async function GET() {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
+    const { searchParams } = new URL(request.url)
+    const includeArchived = searchParams.get("includeArchived") === "true"
+
     const isOwner = session.user.role === "OWNER"
-    const cases = isOwner ? await getAllCases() : await getProviderCases()
+    const cases = isOwner 
+      ? await getAllCases(includeArchived) 
+      : await getProviderCases(includeArchived)
 
     return NextResponse.json({ cases, isOwner })
   } catch (error) {

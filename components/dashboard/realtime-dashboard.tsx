@@ -25,6 +25,8 @@ interface CaseWithProvider {
   status: CaseStatus
   assistanceType: string | null
   createdAt: Date
+  isArchived: boolean
+  deletedAt: Date | null
   assignedTo: {
     id: string
     name: string

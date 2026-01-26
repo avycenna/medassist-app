@@ -22,7 +22,8 @@ import {
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { StatusBadge } from "./status-badge"
-import { Eye, Search, Filter, Link as LinkIcon, Loader2, Archive, ArchiveRestore, Trash2 } from "lucide-react"
+import { Eye, Search, Filter, Link as LinkIcon, Loader2, Archive, ArchiveRestore, Trash2, ArchiveX } from "lucide-react"
+import { Switch } from "@/components/ui/switch"
 import { assignCaseToProvider, updateCaseStatus, generateMagicLinkForCase, archiveCase, unarchiveCase, deleteCase } from "@/lib/actions/cases"
 import {
   AlertDialog,
@@ -71,6 +72,8 @@ interface CasesTableProps {
   providers?: Provider[]
   isOwner?: boolean
   onRefresh?: () => void
+  showArchived?: boolean
+  onToggleArchived?: () => void
 }
 
 const statusOptions: CaseStatus[] = [
@@ -81,7 +84,7 @@ const statusOptions: CaseStatus[] = [
   "CANCELLED",
 ]
 
-export function CasesTable({ cases, providers = [], isOwner = false, onRefresh }: CasesTableProps) {
+export function CasesTable({ cases, providers = [], isOwner = false, onRefresh, showArchived = false, onToggleArchived }: CasesTableProps) {
   const [filter, setFilter] = useState<CaseStatus | "ALL">("ALL")
   const [search, setSearch] = useState("")
   const [loading, setLoading] = useState<string | null>(null)
@@ -222,6 +225,16 @@ export function CasesTable({ cases, providers = [], isOwner = false, onRefresh }
             </SelectContent>
           </Select>
         </div>
+        {isOwner && onToggleArchived && (
+          <div className="flex items-center gap-2 bg-muted/50 px-3 py-2 rounded-md">
+            <ArchiveX className="h-4 w-4 text-muted-foreground" />
+            <span className="text-sm text-foreground">Show Archived</span>
+            <Switch
+              checked={showArchived}
+              onCheckedChange={onToggleArchived}
+            />
+          </div>
+        )}
       </div>
 
       {/* Table */}
@@ -246,11 +259,16 @@ export function CasesTable({ cases, providers = [], isOwner = false, onRefresh }
               </TableRow>
             ) : (
               filteredCases.map((c) => (
-                <TableRow key={c.id} className="hover:bg-muted/30">
+                <TableRow key={c.id} className={`hover:bg-muted/30 ${c.isArchived ? "opacity-60 bg-muted/20" : ""}`}>
                   <TableCell>
-                    <div>
-                      <p className="font-medium text-foreground">{getPatientName(c)}</p>
-                      <p className="text-xs text-muted-foreground font-mono">{c.id.slice(0, 8)}...</p>
+                    <div className="flex items-center gap-2">
+                      <div>
+                        <p className="font-medium text-foreground">{getPatientName(c)}</p>
+                        <p className="text-xs text-muted-foreground font-mono">{c.id.slice(0, 8)}...</p>
+                      </div>
+                      {c.isArchived && (
+                        <Archive className="h-3 w-3 text-muted-foreground" />
+                      )}
                     </div>
                   </TableCell>
                   <TableCell>
