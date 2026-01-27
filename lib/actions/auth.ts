@@ -60,8 +60,13 @@ export async function createProvider(formData: FormData) {
 }
 
 export async function createOwner(formData: FormData) {
-  // This should only be used for initial setup
-  // In production, you might want to restrict this further
+  const existingOwner = await prisma.user.findFirst({
+    where: { role: "OWNER" },
+  })
+
+  if (existingOwner) {
+    return { error: "An owner account already exists. This setup page is disabled." }
+  }
   
   const email = formData.get("email") as string
   const password = formData.get("password") as string
@@ -81,7 +86,42 @@ export async function createOwner(formData: FormData) {
     return { error: result.error }
   }
 
-  // Auto-login after creating owner
+  const loginResult = await loginUser(email, password)
+  
+  if (loginResult.success) {
+    redirect("/dashboard")
+  }
+
+  return { success: true }
+}
+
+export async function createSecureOwner(formData: FormData) {
+  const existingOwner = await prisma.user.findFirst({
+    where: { role: "OWNER" },
+  })
+
+  if (existingOwner) {
+    return { error: "An owner account already exists. This setup page is disabled." }
+  }
+  
+  const email = formData.get("email") as string
+  const password = formData.get("password") as string
+  const name = formData.get("name") as string
+
+  if (!email || !password || !name) {
+    return { error: "Email, password, and name are required" }
+  }
+
+  if (password.length < 8) {
+    return { error: "Password must be at least 8 characters" }
+  }
+
+  const result = await registerUser(email, password, name, "OWNER" as Role)
+
+  if (!result.success) {
+    return { error: result.error }
+  }
+
   const loginResult = await loginUser(email, password)
   
   if (loginResult.success) {

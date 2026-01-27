@@ -33,11 +33,8 @@ export default async function HomePage() {
             <span className="text-lg font-semibold text-foreground">MedSupportTravel</span>
           </div>
           <div className="flex items-center gap-3">
-            <Button variant="ghost" asChild>
-              <Link href="/login">Sign In</Link>
-            </Button>
             <Button asChild>
-              <Link href="/setup">Get Started</Link>
+              <Link href="/login">Sign In</Link>
             </Button>
           </div>
         </div>
