@@ -218,10 +218,30 @@ export async function createCase(data: {
   assistanceType?: AssistanceType
 }) {
   await requireRole(["OWNER"])
+
+  const {
+    patientName,
+    firstName,
+    lastName,
+    dob,
+    address,
+    phoneNumber,
+    email,
+    symptoms,
+    assistanceType,
+  } = data
   
   const newCase = await prisma.case.create({
     data: {
-      ...data,
+      patientName,
+      firstName,
+      lastName,
+      dob,
+      address,
+      phoneNumber,
+      email,
+      assistanceType,
+      rawEmailContent: symptoms,
       source: "MANUAL",
       status: "PENDING",
     },
