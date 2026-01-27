@@ -9,7 +9,7 @@ const _geist = Geist({ subsets: ["latin"] });
 const _geistMono = Geist_Mono({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: 'MedAssist - Medical Case Management',
+  title: 'MedSupportTravel - Medical Case Management',
   description: 'Production-ready medical assistant management platform for case tracking, provider coordination, and patient communication.',
   icons: {
     icon: [

@@ -38,7 +38,7 @@ export default async function ClientPage({ params }: ClientPageProps) {
             <div className="p-1.5 bg-primary rounded-md">
               <Stethoscope className="h-5 w-5 text-primary-foreground" />
             </div>
-            <span className="text-lg font-semibold text-foreground">MedAssist</span>
+            <span className="text-lg font-semibold text-foreground">MedSupportTravel</span>
           </div>
         </div>
       </header>

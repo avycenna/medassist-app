@@ -30,7 +30,7 @@ export default async function HomePage() {
             <div className="p-1.5 bg-primary rounded-md">
               <Stethoscope className="h-5 w-5 text-primary-foreground" />
             </div>
-            <span className="text-lg font-semibold text-foreground">MedAssist</span>
+            <span className="text-lg font-semibold text-foreground">MedSupportTravel</span>
           </div>
           <div className="flex items-center gap-3">
             <Button variant="ghost" asChild>
@@ -146,7 +146,7 @@ export default async function HomePage() {
       {/* Footer */}
       <footer className="border-t border-border py-8 px-4">
         <div className="container mx-auto max-w-6xl text-center text-sm text-muted-foreground">
-          <p>MedAssist - Medical Case Management Platform</p>
+          <p>MedSupportTravel - Medical Case Management Platform</p>
         </div>
       </footer>
     </div>

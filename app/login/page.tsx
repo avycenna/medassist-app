@@ -36,7 +36,7 @@ export default function LoginPage() {
             <div className="p-2 bg-primary rounded-lg">
               <Stethoscope className="h-6 w-6 text-primary-foreground" />
             </div>
-            <span className="text-2xl font-semibold text-foreground">MedAssist</span>
+            <span className="text-2xl font-semibold text-foreground">MedSupportTravel</span>
           </div>
           <p className="text-muted-foreground text-sm">Medical Case Management Platform</p>
         </div>
