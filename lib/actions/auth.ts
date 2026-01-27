@@ -4,6 +4,7 @@ import { redirect } from "next/navigation"
 import { loginUser, registerUser, destroySession, requireRole } from "@/lib/auth"
 import { revalidateTag } from "next/cache"
 import type { Role } from "@/lib/types"
+import prisma from "@/lib/prisma"
 
 export async function login(formData: FormData) {
   const email = formData.get("email") as string
