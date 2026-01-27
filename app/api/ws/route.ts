@@ -1,53 +1,62 @@
-import { NextRequest, NextResponse } from "next/server"
-import { prisma } from "@/lib/prisma"
+import { type NextRequest } from "next/server"
+import type { WebSocket as WSWebSocket } from "ws"
 import { hashToken } from "@/lib/auth"
+import prisma from "@/lib/prisma"
 import type { SenderType } from "@/lib/types"
-import type { WebSocket } from "ws"
+import { broadcastToClients } from "@/lib/websocket-broadcast"
 
-interface WebSocketWithExtras extends WebSocket {
+interface CustomWebSocket extends WSWebSocket {
   userId?: string
+  magicLinkId?: string
   cases?: Set<string>
 }
 
-// Store active connections
-const connections = new Map<string, Set<WebSocketWithExtras>>()
+const connections = new Map<string, Set<CustomWebSocket>>()
 
-function broadcast(caseId: string, message: any, excludeWs?: WebSocketWithExtras) {
-  const caseConnections = connections.get(caseId)
-  if (!caseConnections) return
-
-  const messageStr = JSON.stringify(message)
-  caseConnections.forEach((ws) => {
-    if (ws !== excludeWs && ws.readyState === 1) {
-      // 1 = OPEN
-      ws.send(messageStr)
-    }
-  })
+function broadcast(caseId: string, data: any) {
+  if (connections.has(caseId)) {
+    connections.get(caseId)!.forEach((client) => {
+      if (client.readyState === 1) {
+        client.send(JSON.stringify(data))
+      }
+    })
+  }
 }
 
-export function SOCKET(
-  client: WebSocketWithExtras,
-  request: NextRequest,
-  server: any
-) {
-  console.log("[*] WebSocket client connected")
-
-  // Initialize client data
-  client.userId = ""
-  client.cases = new Set<string>()
-
-  // Handle messages from client
-  client.on("message", async (data) => {
+export function UPGRADE(client: CustomWebSocket, server: any, request: NextRequest) {
+  client.on("message", async (message) => {
     try {
-      const message = JSON.parse(data.toString())
-      const { type, payload } = message
+      const parsed = JSON.parse(String(message))
+      const { type, payload } = parsed
 
       switch (type) {
         case "auth": {
-          // Authenticate the user
-          const { userId } = payload
-          client.userId = userId
-          console.log(`[*] User ${userId} authenticated`)
+          const { userId, token } = payload
+          if (userId) {
+            client.userId = userId
+            console.log(`[*] User ${userId} authenticated`)
+          } else if (token) {
+            const hashedToken = await hashToken(token)
+            const magicLink = await prisma.magicLink.findUnique({
+              where: { tokenHash: hashedToken },
+              select: { id: true, caseId: true },
+            })
+            if (magicLink) {
+              client.magicLinkId = magicLink.id
+              client.cases = new Set([magicLink.caseId])
+              if (!connections.has(magicLink.caseId)) {
+                connections.set(magicLink.caseId, new Set())
+              }
+              connections.get(magicLink.caseId)!.add(client)
+              console.log(`[*] Client ${magicLink.id} authenticated for case ${magicLink.caseId}`)
+            } else {
+              client.send(JSON.stringify({ type: "error", payload: { message: "Invalid magic link" } }))
+              client.close()
+            }
+          } else {
+            client.send(JSON.stringify({ type: "error", payload: { message: "Authentication required" } }))
+            client.close()
+          }
           break
         }
 
@@ -60,12 +69,15 @@ export function SOCKET(
             break
           }
 
-          // Add to case connections
+          if (!client.cases) {
+            client.cases = new Set()
+          }
+          client.cases.add(caseId)
+
           if (!connections.has(caseId)) {
             connections.set(caseId, new Set())
           }
           connections.get(caseId)!.add(client)
-          client.cases!.add(caseId)
 
           console.log(`[*] User ${userId} joined case ${caseId}`)
           client.send(JSON.stringify({ type: "joined:case", payload: { caseId } }))
@@ -94,7 +106,6 @@ export function SOCKET(
             break
           }
 
-          // Get user details
           const user = await prisma.user.findUnique({
             where: { id: userId },
             select: { id: true, name: true, role: true },
@@ -105,7 +116,6 @@ export function SOCKET(
             break
           }
 
-          // Create message in database
           const dbMessage = await prisma.message.create({
             data: {
               caseId,
@@ -127,11 +137,11 @@ export function SOCKET(
 
           console.log(`[*] Message sent in case ${caseId} by user ${userId}`)
 
-          // Broadcast to all clients in the case
           broadcast(caseId, {
             type: "message:new",
             payload: { caseId, message: dbMessage },
           })
+          broadcastToClients("unread:refresh", {})
 
           break
         }
@@ -163,6 +173,7 @@ export function SOCKET(
             type: "message:read",
             payload: { messageId, userId, caseId },
           })
+          broadcastToClients("unread:refresh", {})
 
           break
         }
@@ -197,9 +208,9 @@ export function SOCKET(
 
           const magicLink = await prisma.magicLink.findUnique({
             where: { tokenHash: hashedToken },
-            select: { 
-              id: true, 
-              caseId: true, 
+            select: {
+              id: true,
+              caseId: true,
               expiresAt: true,
             },
           })
@@ -216,21 +227,20 @@ export function SOCKET(
               senderType: "CLIENT",
               magicLinkId: magicLink.id,
             },
-            select: {
-              id: true,
-              content: true,
-              senderType: true,
-              createdAt: true,
-              sender: {
-                select: { id: true, name: true, role: true },
+            include: {
+              magicLink: {
+                select: { clientFirstName: true },
               },
             },
           })
+
+          console.log(`[*] Message sent in case ${magicLink.caseId} by client ${magicLink.id}`)
 
           broadcast(magicLink.caseId, {
             type: "message:new",
             payload: { caseId: magicLink.caseId, message: dbMessage },
           })
+          broadcastToClients("unread:refresh", {})
 
           break
         }
@@ -249,12 +259,10 @@ export function SOCKET(
     }
   })
 
-  // Handle disconnection
   client.on("close", () => {
-    const userId = client.userId
-    console.log(`[*] WebSocket client disconnected (user: ${userId})`)
+    const identifier = client.userId || client.magicLinkId
+    console.log(`[*] WebSocket client disconnected (identifier: ${identifier})`)
 
-    // Remove from all case connections
     if (client.cases) {
       client.cases.forEach((caseId) => {
         if (connections.has(caseId)) {
@@ -268,10 +276,6 @@ export function SOCKET(
   })
 
   client.on("error", (error) => {
-    console.error("[*] WebSocket error:", error)
+    console.error(`[*] WebSocket error for client ${client.userId || client.magicLinkId}:`, error)
   })
-}
-
-export function GET() {
-  return new NextResponse("WebSocket endpoint", { status: 426, statusText: "Upgrade Required" })
 }

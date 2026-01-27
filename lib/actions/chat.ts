@@ -15,21 +15,22 @@ const MESSAGE_SELECT = {
   sender: {
     select: { id: true, name: true, role: true },
   },
+  magicLinkId: true,
 }
 
 export async function sendMessage(caseId: string, content: string) {
   const session = await getSession()
   if (!session) throw new Error("Unauthorized")
-  
+
   const caseData = await prisma.case.findUnique({
     where: { id: caseId },
-    select: { id: true, assignedToId: true },
+    select: { id: true },
   })
-  
+
   if (!caseData) throw new Error("Case not found")
-  
-  if (session.user.role === "PROVIDER" && caseData.assignedToId !== session.user.id) {
-    throw new Error("Unauthorized")
+
+  if (session.user.role !== "OWNER") {
+    throw new Error("Only administrators can send messages in cases")
   }
   
   const message = await prisma.message.create({
@@ -39,11 +40,7 @@ export async function sendMessage(caseId: string, content: string) {
       senderType: session.user.role as SenderType,
       senderId: session.user.id,
     },
-    include: {
-      sender: {
-        select: { id: true, name: true, role: true },
-      },
-    },
+    select: MESSAGE_SELECT,
   })
 
   await prisma.$executeRaw`
@@ -56,6 +53,8 @@ export async function sendMessage(caseId: string, content: string) {
   `
   
   revalidateTag("messages", "max")
+  await broadcastToClients("message:new", { caseId, message })
+  await broadcastToClients("unread:refresh", {})
   return message
 }
 
@@ -89,13 +88,13 @@ export async function getCaseMessages(caseId: string) {
   
   const caseData = await prisma.case.findUnique({
     where: { id: caseId },
-    select: { id: true, assignedToId: true },
+    select: { id: true },
   })
   
   if (!caseData) throw new Error("Case not found")
   
-  if (session.user.role === "PROVIDER" && caseData.assignedToId !== session.user.id) {
-    throw new Error("Unauthorized")
+  if (session.user.role !== "OWNER") {
+    throw new Error("Only administrators can view case messages")
   }
   
   const messages = await prisma.message.findMany({

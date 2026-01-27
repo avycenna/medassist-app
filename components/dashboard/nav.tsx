@@ -23,7 +23,8 @@ import {
   User as UserIcon,
   Menu,
   X,
-  Bell
+  Bell,
+  MessageSquare
 } from "lucide-react"
 import { logout } from "@/lib/actions/auth"
 import type { User } from "@/lib/types"
@@ -41,12 +42,14 @@ const ownerLinks = [
   { href: "/dashboard", label: "Overview", icon: LayoutDashboard },
   { href: "/dashboard/cases", label: "Cases", icon: FolderKanban },
   { href: "/dashboard/providers", label: "Providers", icon: Users },
+  { href: "/dashboard/messages", label: "Messages", icon: MessageSquare },
   { href: "/dashboard/settings", label: "Settings", icon: Settings },
 ]
 
 const providerLinks = [
   { href: "/dashboard", label: "Overview", icon: LayoutDashboard },
   { href: "/dashboard/cases", label: "My Cases", icon: FolderKanban },
+  { href: "/dashboard/messages", label: "Messages", icon: MessageSquare },
 ]
 
 export function DashboardNav({ user }: DashboardNavProps) {

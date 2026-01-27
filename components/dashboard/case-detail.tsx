@@ -322,13 +322,14 @@ export function CaseDetail({ caseData, providers, currentUser, onRefresh }: Case
             </Collapsible>
           )}
 
-          {/* Chat */}
-          <ChatPanel 
-            caseId={caseData.id} 
-            messages={caseData.messages}
-            currentUser={currentUser}
-            onRefresh={onRefresh}
-          />
+          {isOwner && (
+            <ChatPanel 
+              caseId={caseData.id} 
+              messages={caseData.messages}
+              currentUser={currentUser}
+              onRefresh={onRefresh}
+            />
+          )}
         </div>
 
         {/* Sidebar */}
