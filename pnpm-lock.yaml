@@ -134,6 +134,9 @@ importers:
       embla-carousel-react:
         specifier: 8.5.1
         version: 8.5.1(react@19.2.0)
+      ignore-loader:
+        specifier: ^0.1.2
+        version: 0.1.2
       imapflow:
         specifier: ^1.2.7
         version: 1.2.7
@@ -1923,6 +1926,9 @@ packages:
   iconv-lite@0.7.2:
     resolution: {integrity: sha512-im9DjEDQ55s9fL4EYzOAv0yMqmMBSZp6G0VvFyTMPKWxiSBHUj9NW/qqLmXUwXrrM7AvqSlTCfvqRb0cM8yYqw==}
     engines: {node: '>=0.10.0'}
+
+  ignore-loader@0.1.2:
+    resolution: {integrity: sha512-yOJQEKrNwoYqrWLS4DcnzM7SEQhRKis5mB+LdKKh4cPmGYlLPR0ozRzHV5jmEk2IxptqJNQA5Cc0gw8Fj12bXA==}
 
   imapflow@1.2.7:
     resolution: {integrity: sha512-x1UXswBXf4CQa577BVPp/2HMp1ILBPkzYePk0Fscgh7lO2QCSIUONKbjglrLSC/R0dQ3uYpe5ZRnU1szhmw62w==}
@@ -4421,6 +4427,8 @@ snapshots:
   iconv-lite@0.7.2:
     dependencies:
       safer-buffer: 2.1.2
+
+  ignore-loader@0.1.2: {}
 
   imapflow@1.2.7:
     dependencies:

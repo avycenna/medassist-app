@@ -6,6 +6,7 @@ const nextConfig = {
   images: {
     unoptimized: true,
   },
+  serverExternalPackages: ['imapflow', 'pino', 'thread-stream', 'pino-pretty'],
 }
 
 export default nextConfig
