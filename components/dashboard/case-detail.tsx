@@ -32,7 +32,14 @@ import {
   Link as LinkIcon,
   Loader2,
   Clock,
-  Activity
+  Activity,
+  Building,
+  Globe,
+  Plane,
+  Shield,
+  Hash,
+  AlertCircle,
+  Stethoscope
 } from "lucide-react"
 import { assignCaseToProvider, updateCaseStatus, generateMagicLinkForCase } from "@/lib/actions/cases"
 import type { CaseStatus, User as UserType, SenderType } from "@/lib/types"
@@ -70,6 +77,35 @@ interface CaseDetailProps {
     createdAt: Date
     updatedAt: Date
     assignedTo: { id: string; name: string; email: string } | null
+    idAssist: number | null
+    codeAssist: string | null
+    codigo: string | null
+    prefijo: string | null
+    passport: string | null
+    isoCountry: string | null
+    origin: string | null
+    isoCountrySource: string | null
+    descAssistanceType: string | null
+    idAssistanceType: number | null
+    canCancelVoucher: string | null
+    clientName: string | null
+    symptom: string | null
+    symptomDetail: string | null
+    idUsersCreated: number | null
+    reportedDate: Date | null
+    registeredDate: Date | null
+    triageStatus: string | null
+    triageColor: string | null
+    triageLabel: string | null
+    refund: string | null
+    voucherIsManual: string | null
+    specialityLocation: string | null
+    approvedStatus: number | null
+    assignedToAssistance: string | null
+    statusAssistStatus: string | null
+    statusAssistIcon: string | null
+    statusAssistLabel: string | null
+    view: string | null
     messages: Array<{
       id: string
       content: string
@@ -259,12 +295,20 @@ export function CaseDetail({ caseData, providers, currentUser, onRefresh }: Case
               </div>
 
               {/* Symptoms */}
-              {caseData.symptoms && (
+              {(caseData.symptoms || caseData.symptom) && (
                 <div>
                   <h4 className="text-sm font-medium text-foreground mb-2">Symptoms / Complaint</h4>
-                  <p className="text-sm text-muted-foreground bg-muted p-3 rounded-md">
-                    {caseData.symptoms}
-                  </p>
+                  {caseData.symptom && caseData.symptomDetail ? (
+                    <div className="space-y-2">
+                      <p className="text-sm font-medium text-muted-foreground">
+                        {caseData.symptom} - {caseData.symptomDetail}
+                      </p>
+                    </div>
+                  ) : (
+                    <p className="text-sm text-muted-foreground bg-muted p-3 rounded-md">
+                      {caseData.symptoms}
+                    </p>
+                  )}
                 </div>
               )}
 
@@ -286,6 +330,195 @@ export function CaseDetail({ caseData, providers, currentUser, onRefresh }: Case
               </div>
             </CardContent>
           </Card>
+
+          {/* WTA Assistance Information */}
+          {(caseData.idAssist || caseData.codeAssist || caseData.clientName) && (
+            <Card className="bg-card">
+              <CardHeader>
+                <CardTitle className="text-foreground flex items-center gap-2">
+                  <Shield className="h-4 w-4" />
+                  Assistance Details
+                </CardTitle>
+                <CardDescription>Insurance and assistance information</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                {/* Assistance IDs */}
+                <div className="grid gap-4 sm:grid-cols-2">
+                  {caseData.idAssist && (
+                    <div className="flex items-start gap-3">
+                      <Hash className="h-4 w-4 mt-1 text-muted-foreground" />
+                      <div>
+                        <p className="text-sm font-medium text-foreground">Assistance ID</p>
+                        <p className="text-sm text-muted-foreground font-mono">{caseData.idAssist}</p>
+                      </div>
+                    </div>
+                  )}
+                  {caseData.codeAssist && (
+                    <div className="flex items-start gap-3">
+                      <Hash className="h-4 w-4 mt-1 text-muted-foreground" />
+                      <div>
+                        <p className="text-sm font-medium text-foreground">Assistance Code</p>
+                        <p className="text-sm text-muted-foreground font-mono">{caseData.codeAssist}</p>
+                      </div>
+                    </div>
+                  )}
+                  {caseData.clientName && (
+                    <div className="flex items-start gap-3">
+                      <Building className="h-4 w-4 mt-1 text-muted-foreground" />
+                      <div>
+                        <p className="text-sm font-medium text-foreground">Insurance Provider</p>
+                        <p className="text-sm text-muted-foreground">{caseData.clientName}</p>
+                      </div>
+                    </div>
+                  )}
+                  {caseData.descAssistanceType && (
+                    <div className="flex items-start gap-3">
+                      <Activity className="h-4 w-4 mt-1 text-muted-foreground" />
+                      <div>
+                        <p className="text-sm font-medium text-foreground">Assistance Type</p>
+                        <p className="text-sm text-muted-foreground">{caseData.descAssistanceType}</p>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Travel Information */}
+                {(caseData.passport || caseData.isoCountry || caseData.isoCountrySource) && (
+                  <div>
+                    <h4 className="text-sm font-medium text-foreground mb-3">Travel Information</h4>
+                    <div className="grid gap-4 sm:grid-cols-2">
+                      {caseData.passport && (
+                        <div className="flex items-start gap-3">
+                          <Shield className="h-4 w-4 mt-1 text-muted-foreground" />
+                          <div>
+                            <p className="text-sm font-medium text-foreground">Passport/Document</p>
+                            <p className="text-sm text-muted-foreground font-mono">{caseData.passport}</p>
+                          </div>
+                        </div>
+                      )}
+                      {caseData.isoCountrySource && (
+                        <div className="flex items-start gap-3">
+                          <Plane className="h-4 w-4 mt-1 text-muted-foreground" />
+                          <div>
+                            <p className="text-sm font-medium text-foreground">From Country</p>
+                            <p className="text-sm text-muted-foreground">{caseData.isoCountrySource}</p>
+                          </div>
+                        </div>
+                      )}
+                      {caseData.isoCountry && (
+                        <div className="flex items-start gap-3">
+                          <Globe className="h-4 w-4 mt-1 text-muted-foreground" />
+                          <div>
+                            <p className="text-sm font-medium text-foreground">Destination Country</p>
+                            <p className="text-sm text-muted-foreground">{caseData.isoCountry}</p>
+                          </div>
+                        </div>
+                      )}
+                      {caseData.origin && (
+                        <div className="flex items-start gap-3">
+                          <Phone className="h-4 w-4 mt-1 text-muted-foreground" />
+                          <div>
+                            <p className="text-sm font-medium text-foreground">Contact Origin</p>
+                            <p className="text-sm text-muted-foreground">{caseData.origin}</p>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {/* Medical Service */}
+                {(caseData.specialityLocation || caseData.statusAssistLabel) && (
+                  <div>
+                    <h4 className="text-sm font-medium text-foreground mb-3">Service Information</h4>
+                    <div className="grid gap-4 sm:grid-cols-2">
+                      {caseData.specialityLocation && (
+                        <div className="flex items-start gap-3">
+                          <Stethoscope className="h-4 w-4 mt-1 text-muted-foreground" />
+                          <div>
+                            <p className="text-sm font-medium text-foreground">Specialty/Location</p>
+                            <p className="text-sm text-muted-foreground">{caseData.specialityLocation}</p>
+                          </div>
+                        </div>
+                      )}
+                      {caseData.statusAssistLabel && (
+                        <div className="flex items-start gap-3">
+                          <Activity className="h-4 w-4 mt-1 text-muted-foreground" />
+                          <div>
+                            <p className="text-sm font-medium text-foreground">Assistance Status</p>
+                            <p className="text-sm text-muted-foreground">{caseData.statusAssistLabel}</p>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {/* Triage & Dates */}
+                <div className="grid gap-4 sm:grid-cols-2">
+                  {caseData.triageLabel && (
+                    <div className="flex items-start gap-3">
+                      <AlertCircle className="h-4 w-4 mt-1 text-muted-foreground" />
+                      <div>
+                        <p className="text-sm font-medium text-foreground">Triage</p>
+                        <Status variant={caseData.triageColor === 'danger' ? 'error' : caseData.triageColor === 'warning' ? 'warning' : 'default'}>
+                          <StatusLabel>{caseData.triageLabel}</StatusLabel>
+                        </Status>
+                      </div>
+                    </div>
+                  )}
+                  {caseData.reportedDate && (
+                    <div className="flex items-start gap-3">
+                      <Clock className="h-4 w-4 mt-1 text-muted-foreground" />
+                      <div>
+                        <p className="text-sm font-medium text-foreground">Reported Date</p>
+                        <p className="text-sm text-muted-foreground">
+                          {format(new Date(caseData.reportedDate), "PPp")}
+                        </p>
+                      </div>
+                    </div>
+                  )}
+                  {caseData.registeredDate && (
+                    <div className="flex items-start gap-3">
+                      <Clock className="h-4 w-4 mt-1 text-muted-foreground" />
+                      <div>
+                        <p className="text-sm font-medium text-foreground">Registered Date</p>
+                        <p className="text-sm text-muted-foreground">
+                          {format(new Date(caseData.registeredDate), "PPp")}
+                        </p>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Additional Info */}
+                {(caseData.codigo || caseData.prefijo) && (
+                  <div className="flex flex-wrap gap-2">
+                    {caseData.codigo && (
+                      <Status variant="default">
+                        <StatusLabel>Code: {caseData.codigo}</StatusLabel>
+                      </Status>
+                    )}
+                    {caseData.prefijo && (
+                      <Status variant="default">
+                        <StatusLabel>Prefix: {caseData.prefijo}</StatusLabel>
+                      </Status>
+                    )}
+                    {caseData.refund === 'Y' && (
+                      <Status variant="info">
+                        <StatusLabel>Refund Eligible</StatusLabel>
+                      </Status>
+                    )}
+                    {caseData.voucherIsManual === 'Y' && (
+                      <Status variant="warning">
+                        <StatusLabel>Manual Voucher</StatusLabel>
+                      </Status>
+                    )}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          )}
 
           {/* Raw Email */}
           {caseData.rawEmailContent && (
@@ -322,14 +555,12 @@ export function CaseDetail({ caseData, providers, currentUser, onRefresh }: Case
             </Collapsible>
           )}
 
-          {isOwner && (
-            <ChatPanel 
-              caseId={caseData.id} 
-              messages={caseData.messages}
-              currentUser={currentUser}
-              onRefresh={onRefresh}
-            />
-          )}
+          <ChatPanel 
+            caseId={caseData.id} 
+            messages={caseData.messages}
+            currentUser={currentUser}
+            onRefresh={onRefresh}
+          />
         </div>
 
         {/* Sidebar */}

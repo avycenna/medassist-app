@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useMemo } from "react"
 import Link from "next/link"
 import { format } from "date-fns"
 import { toast } from "sonner"
@@ -22,7 +22,24 @@ import {
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { StatusBadge } from "./status-badge"
-import { Eye, Search, Filter, Link as LinkIcon, Loader2, Archive, ArchiveRestore, Trash2, ArchiveX } from "lucide-react"
+import { 
+  Eye, 
+  Search, 
+  Filter, 
+  Link as LinkIcon, 
+  Loader2, 
+  Archive, 
+  ArchiveRestore, 
+  Trash2, 
+  ArchiveX,
+  ChevronLeft,
+  ChevronRight,
+  ChevronsLeft,
+  ChevronsRight,
+  ArrowUpDown,
+  ArrowUp,
+  ArrowDown
+} from "lucide-react"
 import { Switch } from "@/components/ui/switch"
 import { assignCaseToProvider, updateCaseStatus, generateMagicLinkForCase, archiveCase, unarchiveCase, deleteCase } from "@/lib/actions/cases"
 import {
@@ -59,6 +76,13 @@ interface CaseWithProvider {
     name: string
     email: string
   } | null
+  idAssist: number | null
+  codeAssist: string | null
+  clientName: string | null
+  symptom: string | null
+  symptomDetail: string | null
+  isoCountry: string | null
+  statusAssistLabel: string | null
 }
 
 interface Provider {
@@ -84,10 +108,16 @@ const statusOptions: CaseStatus[] = [
   "CANCELLED",
 ]
 
+type SortField = "patient" | "status" | "type" | "createdAt" | "provider"
+type SortOrder = "asc" | "desc"
+
 export function CasesTable({ cases, providers = [], isOwner = false, onRefresh, showArchived = false, onToggleArchived }: CasesTableProps) {
   const [filter, setFilter] = useState<CaseStatus | "ALL">("ALL")
   const [search, setSearch] = useState("")
   const [loading, setLoading] = useState<string | null>(null)
+  const [pagination, setPagination] = useState({ pageIndex: 0, pageSize: 20 })
+  const [sortField, setSortField] = useState<SortField>("createdAt")
+  const [sortOrder, setSortOrder] = useState<SortOrder>("desc")
   const [magicLinkDialog, setMagicLinkDialog] = useState<{ open: boolean; url: string }>({
     open: false,
     url: "",
@@ -97,15 +127,73 @@ export function CasesTable({ cases, providers = [], isOwner = false, onRefresh, 
     caseId: null,
   })
 
-  const filteredCases = cases.filter((c) => {
-    const matchesFilter = filter === "ALL" || c.status === filter
-    const matchesSearch = 
-      search === "" ||
-      c.patientName?.toLowerCase().includes(search.toLowerCase()) ||
-      `${c.firstName} ${c.lastName}`.toLowerCase().includes(search.toLowerCase()) ||
-      c.id.toLowerCase().includes(search.toLowerCase())
-    return matchesFilter && matchesSearch
-  })
+  const toggleSort = (field: SortField) => {
+    if (sortField === field) {
+      setSortOrder(sortOrder === "asc" ? "desc" : "asc")
+    } else {
+      setSortField(field)
+      setSortOrder("asc")
+    }
+    setPagination({ ...pagination, pageIndex: 0 })
+  }
+
+  const filteredAndSortedCases = useMemo(() => {
+    let filtered = cases.filter((c) => {
+      const matchesFilter = filter === "ALL" || c.status === filter
+      const matchesSearch = 
+        search === "" ||
+        c.patientName?.toLowerCase().includes(search.toLowerCase()) ||
+        `${c.firstName} ${c.lastName}`.toLowerCase().includes(search.toLowerCase()) ||
+        c.id.toLowerCase().includes(search.toLowerCase()) ||
+        c.clientName?.toLowerCase().includes(search.toLowerCase()) ||
+        c.idAssist?.toString().includes(search)
+      return matchesFilter && matchesSearch
+    })
+
+    filtered.sort((a, b) => {
+      let aVal: any, bVal: any
+      
+      switch (sortField) {
+        case "patient":
+          aVal = a.patientName || `${a.firstName} ${a.lastName}`.trim() || ""
+          bVal = b.patientName || `${b.firstName} ${b.lastName}`.trim() || ""
+          break
+        case "status":
+          aVal = a.status
+          bVal = b.status
+          break
+        case "type":
+          aVal = a.assistanceType || ""
+          bVal = b.assistanceType || ""
+          break
+        case "createdAt":
+          aVal = new Date(a.createdAt).getTime()
+          bVal = new Date(b.createdAt).getTime()
+          break
+        case "provider":
+          aVal = a.assignedTo?.name || ""
+          bVal = b.assignedTo?.name || ""
+          break
+        default:
+          return 0
+      }
+
+      if (aVal < bVal) return sortOrder === "asc" ? -1 : 1
+      if (aVal > bVal) return sortOrder === "asc" ? 1 : -1
+      return 0
+    })
+
+    return filtered
+  }, [cases, filter, search, sortField, sortOrder])
+
+  const totalPages = Math.ceil(filteredAndSortedCases.length / pagination.pageSize)
+  const startRow = pagination.pageIndex * pagination.pageSize + 1
+  const endRow = Math.min(startRow + pagination.pageSize - 1, filteredAndSortedCases.length)
+  
+  const paginatedCases = filteredAndSortedCases.slice(
+    pagination.pageIndex * pagination.pageSize,
+    (pagination.pageIndex + 1) * pagination.pageSize
+  )
 
   async function handleAssignProvider(caseId: string, providerId: string) {
     setLoading(caseId)
@@ -242,23 +330,95 @@ export function CasesTable({ cases, providers = [], isOwner = false, onRefresh, 
         <Table>
           <TableHeader>
             <TableRow className="bg-muted/50">
-              <TableHead className="text-foreground">Patient</TableHead>
-              <TableHead className="text-foreground">Status</TableHead>
-              <TableHead className="text-foreground hidden md:table-cell">Type</TableHead>
-              <TableHead className="text-foreground hidden lg:table-cell">Created</TableHead>
-              {isOwner && <TableHead className="text-foreground">Provider</TableHead>}
+              <TableHead className="text-foreground">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="-ml-3 h-8 data-[state=open]:bg-accent"
+                  onClick={() => toggleSort("patient")}
+                >
+                  Patient
+                  {sortField === "patient" ? (
+                    sortOrder === "asc" ? <ArrowUp className="ml-2 h-4 w-4" /> : <ArrowDown className="ml-2 h-4 w-4" />
+                  ) : (
+                    <ArrowUpDown className="ml-2 h-4 w-4" />
+                  )}
+                </Button>
+              </TableHead>
+              <TableHead className="text-foreground">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="-ml-3 h-8 data-[state=open]:bg-accent"
+                  onClick={() => toggleSort("status")}
+                >
+                  Status
+                  {sortField === "status" ? (
+                    sortOrder === "asc" ? <ArrowUp className="ml-2 h-4 w-4" /> : <ArrowDown className="ml-2 h-4 w-4" />
+                  ) : (
+                    <ArrowUpDown className="ml-2 h-4 w-4" />
+                  )}
+                </Button>
+              </TableHead>
+              <TableHead className="text-foreground hidden md:table-cell">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="-ml-3 h-8 data-[state=open]:bg-accent"
+                  onClick={() => toggleSort("type")}
+                >
+                  Type
+                  {sortField === "type" ? (
+                    sortOrder === "asc" ? <ArrowUp className="ml-2 h-4 w-4" /> : <ArrowDown className="ml-2 h-4 w-4" />
+                  ) : (
+                    <ArrowUpDown className="ml-2 h-4 w-4" />
+                  )}
+                </Button>
+              </TableHead>
+              <TableHead className="text-foreground hidden lg:table-cell">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="-ml-3 h-8 data-[state=open]:bg-accent"
+                  onClick={() => toggleSort("createdAt")}
+                >
+                  Created
+                  {sortField === "createdAt" ? (
+                    sortOrder === "asc" ? <ArrowUp className="ml-2 h-4 w-4" /> : <ArrowDown className="ml-2 h-4 w-4" />
+                  ) : (
+                    <ArrowUpDown className="ml-2 h-4 w-4" />
+                  )}
+                </Button>
+              </TableHead>
+              {isOwner && (
+                <TableHead className="text-foreground">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="-ml-3 h-8 data-[state=open]:bg-accent"
+                    onClick={() => toggleSort("provider")}
+                  >
+                    Provider
+                    {sortField === "provider" ? (
+                      sortOrder === "asc" ? <ArrowUp className="ml-2 h-4 w-4" /> : <ArrowDown className="ml-2 h-4 w-4" />
+                    ) : (
+                      <ArrowUpDown className="ml-2 h-4 w-4" />
+                    )}
+                  </Button>
+                </TableHead>
+              )}
               <TableHead className="text-foreground text-right">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
-            {filteredCases.length === 0 ? (
+            {paginatedCases.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={isOwner ? 6 : 5} className="text-center py-8 text-muted-foreground">
                   No cases found
                 </TableCell>
               </TableRow>
             ) : (
-              filteredCases.map((c) => (
+              paginatedCases.map((c) => (
                 <TableRow key={c.id} className={`hover:bg-muted/30 ${c.isArchived ? "opacity-60 bg-muted/20" : ""}`}>
                   <TableCell>
                     <div className="flex items-center gap-2">
@@ -383,6 +543,84 @@ export function CasesTable({ cases, providers = [], isOwner = false, onRefresh, 
           </TableBody>
         </Table>
       </div>
+
+      {/* Pagination Controls */}
+      {filteredAndSortedCases.length > 0 && (
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-4 px-2">
+          <div className="flex items-center gap-2">
+            <p className="text-sm text-muted-foreground">
+              Showing {startRow} to {endRow} of {filteredAndSortedCases.length} results
+            </p>
+          </div>
+          
+          <div className="flex items-center gap-6">
+            <div className="flex items-center gap-2">
+              <p className="text-sm text-muted-foreground">Rows per page</p>
+              <Select
+                value={pagination.pageSize.toString()}
+                onValueChange={(value) => {
+                  setPagination({ pageIndex: 0, pageSize: Number(value) })
+                }}
+              >
+                <SelectTrigger className="h-8 w-[70px]">
+                  <SelectValue placeholder={pagination.pageSize} />
+                </SelectTrigger>
+                <SelectContent side="top">
+                  {[10, 20, 30, 50, 100].map((pageSize) => (
+                    <SelectItem key={pageSize} value={pageSize.toString()}>
+                      {pageSize}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <p className="text-sm text-muted-foreground">
+                Page {pagination.pageIndex + 1} of {totalPages}
+              </p>
+              <div className="flex items-center gap-1">
+                <Button
+                  variant="outline"
+                  size="icon"
+                  className="h-8 w-8"
+                  onClick={() => setPagination({ ...pagination, pageIndex: 0 })}
+                  disabled={pagination.pageIndex === 0}
+                >
+                  <ChevronsLeft className="h-4 w-4" />
+                </Button>
+                <Button
+                  variant="outline"
+                  size="icon"
+                  className="h-8 w-8"
+                  onClick={() => setPagination({ ...pagination, pageIndex: pagination.pageIndex - 1 })}
+                  disabled={pagination.pageIndex === 0}
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                </Button>
+                <Button
+                  variant="outline"
+                  size="icon"
+                  className="h-8 w-8"
+                  onClick={() => setPagination({ ...pagination, pageIndex: pagination.pageIndex + 1 })}
+                  disabled={pagination.pageIndex >= totalPages - 1}
+                >
+                  <ChevronRight className="h-4 w-4" />
+                </Button>
+                <Button
+                  variant="outline"
+                  size="icon"
+                  className="h-8 w-8"
+                  onClick={() => setPagination({ ...pagination, pageIndex: totalPages - 1 })}
+                  disabled={pagination.pageIndex >= totalPages - 1}
+                >
+                  <ChevronsRight className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       <Dialog open={magicLinkDialog.open} onOpenChange={(open) => setMagicLinkDialog({ ...magicLinkDialog, open })}>
         <DialogContent>

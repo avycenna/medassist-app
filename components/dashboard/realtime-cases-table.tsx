@@ -20,6 +20,13 @@ interface CaseWithProvider {
     name: string
     email: string
   } | null
+  idAssist: number | null
+  codeAssist: string | null
+  clientName: string | null
+  symptom: string | null
+  symptomDetail: string | null
+  isoCountry: string | null
+  statusAssistLabel: string | null
 }
 
 interface Provider {

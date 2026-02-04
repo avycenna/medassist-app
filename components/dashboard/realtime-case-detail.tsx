@@ -31,6 +31,35 @@ interface CaseData {
   createdAt: Date
   updatedAt: Date
   assignedTo: { id: string; name: string; email: string } | null
+  idAssist: number | null
+  codeAssist: string | null
+  codigo: string | null
+  prefijo: string | null
+  passport: string | null
+  isoCountry: string | null
+  origin: string | null
+  isoCountrySource: string | null
+  descAssistanceType: string | null
+  idAssistanceType: number | null
+  canCancelVoucher: string | null
+  clientName: string | null
+  symptom: string | null
+  symptomDetail: string | null
+  idUsersCreated: number | null
+  reportedDate: Date | null
+  registeredDate: Date | null
+  triageStatus: string | null
+  triageColor: string | null
+  triageLabel: string | null
+  refund: string | null
+  voucherIsManual: string | null
+  specialityLocation: string | null
+  approvedStatus: number | null
+  assignedToAssistance: string | null
+  statusAssistStatus: string | null
+  statusAssistIcon: string | null
+  statusAssistLabel: string | null
+  view: string | null
   messages: Array<{
     id: string
     content: string
@@ -88,6 +117,8 @@ export function RealtimeCaseDetail({
           ...data.caseData,
           dob: data.caseData.dob ? new Date(data.caseData.dob) : null,
           emailReceivedAt: data.caseData.emailReceivedAt ? new Date(data.caseData.emailReceivedAt) : null,
+          reportedDate: data.caseData.reportedDate ? new Date(data.caseData.reportedDate) : null,
+          registeredDate: data.caseData.registeredDate ? new Date(data.caseData.registeredDate) : null,
           createdAt: new Date(data.caseData.createdAt),
           updatedAt: new Date(data.caseData.updatedAt),
           messages: data.caseData.messages.map((m: any) => ({

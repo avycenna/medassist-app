@@ -117,6 +117,36 @@ model Case {
   createdAt       DateTime       @default(now())
   updatedAt       DateTime       @updatedAt
 
+  idAssist            Int?
+  codeAssist          String?
+  codigo              String?
+  prefijo             String?
+  passport            String?
+  isoCountry          String?
+  origin              String?
+  isoCountrySource    String?
+  descAssistanceType  String?
+  idAssistanceType    Int?
+  canCancelVoucher    String?
+  clientName          String?
+  symptom             String?
+  symptomDetail       String?
+  idUsersCreated      Int?
+  reportedDate        DateTime?
+  registeredDate      DateTime?
+  triageStatus        String?
+  triageColor         String?
+  triageLabel         String?
+  refund              String?
+  voucherIsManual     String?
+  specialityLocation  String?
+  approvedStatus      Int?
+  assignedToAssistance String?
+  statusAssistStatus  String?
+  statusAssistIcon    String?
+  statusAssistLabel   String?
+  view                String?
+
   // Relations
   messages        Message[]
   magicLinks      MagicLink[]
@@ -127,6 +157,8 @@ model Case {
   @@index([createdAt])
   @@index([isArchived])
   @@index([deletedAt])
+  @@index([idAssist])
+  @@index([codeAssist])
 }
 
 // Magic link for client access

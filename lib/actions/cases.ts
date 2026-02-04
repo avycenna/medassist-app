@@ -51,6 +51,11 @@ export async function getProviderCases(includeArchived = false) {
 
   const cases = await prisma.case.findMany({
     where,
+    include: {
+      assignedTo: {
+        select: { id: true, name: true, email: true },
+      },
+    },
     orderBy: { createdAt: "desc" },
   })
 
@@ -331,6 +336,7 @@ export async function getAllProviders() {
       id: true,
       name: true,
       email: true,
+      role: true,
       username: true,
       createdAt: true,
       _count: {
