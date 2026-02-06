@@ -179,16 +179,12 @@ async function fetchNewEmails(): Promise<EmailData[]> {
     addLog("Opened INBOX")
     console.log("[*] Opened INBOX")
     
-    const today = new Date()
-    today.setHours(0, 0, 0, 0)
-    
     const searchCriteria = { 
-      seen: false,
-      since: today
+      seen: false
     }
     
-    addLog(`Searching for unread emails since ${today.toISOString()}`)
-    console.log(`[*] Searching for unread emails since ${today.toISOString()}`)
+    addLog("Searching for unread emails")
+    console.log("[*] Searching for unread emails")
     
     const messages: EmailData[] = []
     let messageCount = 0

@@ -422,3 +422,44 @@ export async function revokeMagicLink(magicLinkId: string) {
   
   revalidateTag("cases", "max")
 }
+
+export async function updateCaseField(caseId: string, field: string, value: any) {
+  const session = await getSession()
+  if (!session) throw new Error("Unauthorized")
+  
+  const existingCase = await prisma.case.findUnique({
+    where: { id: caseId },
+  })
+  
+  if (!existingCase) {
+    throw new Error("Case not found")
+  }
+  
+  if (session.user.role === "PROVIDER" && existingCase.assignedToId !== session.user.id) {
+    throw new Error("Unauthorized")
+  }
+  
+  const updateData: any = {}
+  
+  const dateFields = ["dob", "registeredDate", "reportedDate", "emailReceivedAt"]
+  const numberFields = ["idAssist", "idAssistanceType", "idUsersCreated", "approvedStatus"]
+  
+  if (dateFields.includes(field)) {
+    updateData[field] = value ? new Date(value) : null
+  } else if (numberFields.includes(field)) {
+    updateData[field] = value && value !== "" ? parseInt(value.toString()) : null
+  } else {
+    updateData[field] = value !== undefined && value !== "" ? value : null
+  }
+  
+  const updatedCase = await prisma.case.update({
+    where: { id: caseId },
+    data: updateData,
+  })
+  
+  revalidateTag("cases", "max")
+  await broadcastToClients("case:updated", { caseId })
+  await broadcastToClients("dashboard:updated", {})
+  
+  return updatedCase
+}

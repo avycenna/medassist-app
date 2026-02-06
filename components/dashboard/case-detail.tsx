@@ -21,6 +21,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { StatusBadge } from "./status-badge"
 import { ChatPanel } from "./chat-panel"
+import { EditableField } from "./editable-field"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { 
   ArrowLeft, 
@@ -289,139 +290,216 @@ export function CaseDetail({ caseData, providers, currentUser, onRefresh }: Case
                 </CardHeader>
                 <CardContent>
                   <div className="grid gap-6 sm:grid-cols-2">
-                    {caseData.dob && (
-                      <div className="flex items-start gap-3">
-                        <Calendar className="h-4 w-4 mt-1 text-muted-foreground shrink-0" />
-                        <div className="min-w-0">
-                          <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Date of Birth</p>
-                          <p className="text-sm text-foreground mt-1">
-                            {format(new Date(caseData.dob), "MMMM d, yyyy")}
-                          </p>
-                        </div>
-                      </div>
-                    )}
-                    {caseData.phoneNumber && (
-                      <div className="flex items-start gap-3">
-                        <Phone className="h-4 w-4 mt-1 text-muted-foreground shrink-0" />
-                        <div className="min-w-0">
-                          <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Phone</p>
-                          <p className="text-sm text-foreground mt-1">{caseData.phoneNumber}</p>
-                        </div>
-                      </div>
-                    )}
-                    {caseData.email && (
-                      <div className="flex items-start gap-3">
-                        <Mail className="h-4 w-4 mt-1 text-muted-foreground shrink-0" />
-                        <div className="min-w-0">
-                          <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Email</p>
-                          <p className="text-sm text-foreground mt-1 break-all">{caseData.email}</p>
-                        </div>
-                      </div>
-                    )}
-                    {caseData.address && (
-                      <div className="flex items-start gap-3 sm:col-span-2">
-                        <MapPin className="h-4 w-4 mt-1 text-muted-foreground shrink-0" />
-                        <div className="min-w-0">
-                          <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Address</p>
-                          <p className="text-sm text-foreground mt-1">{caseData.address}</p>
-                        </div>
-                      </div>
-                    )}
-                    {(caseData.isoCountry || caseData.nationality) && (
-                      <div className="flex items-start gap-3 sm:col-span-2">
-                        <Globe className="h-4 w-4 mt-1 text-muted-foreground shrink-0" />
-                        <div className="min-w-0 flex-1">
-                          <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-2">Country & Nationality</p>
-                          <div className="flex items-center gap-3 flex-wrap">
+                    <div className="flex items-start gap-3">
+                      <Calendar className="h-4 w-4 mt-1 text-muted-foreground shrink-0" />
+                      <EditableField
+                        caseId={caseData.id}
+                        field="dob"
+                        value={caseData.dob}
+                        label="Date of Birth"
+                        type="date"
+                        onUpdate={onRefresh}
+                        disabled={!isOwner}
+                      />
+                    </div>
+                    <div className="flex items-start gap-3">
+                      <Phone className="h-4 w-4 mt-1 text-muted-foreground shrink-0" />
+                      <EditableField
+                        caseId={caseData.id}
+                        field="phoneNumber"
+                        value={caseData.phoneNumber}
+                        label="Phone"
+                        type="tel"
+                        placeholder="Enter phone number"
+                        onUpdate={onRefresh}
+                        disabled={!isOwner}
+                      />
+                    </div>
+                    <div className="flex items-start gap-3">
+                      <Mail className="h-4 w-4 mt-1 text-muted-foreground shrink-0" />
+                      <EditableField
+                        caseId={caseData.id}
+                        field="email"
+                        value={caseData.email}
+                        label="Email"
+                        type="email"
+                        placeholder="Enter email address"
+                        onUpdate={onRefresh}
+                        disabled={!isOwner}
+                      />
+                    </div>
+                    <div className="flex items-start gap-3 sm:col-span-2">
+                      <MapPin className="h-4 w-4 mt-1 text-muted-foreground shrink-0" />
+                      <EditableField
+                        caseId={caseData.id}
+                        field="address"
+                        value={caseData.address}
+                        label="Address"
+                        type="textarea"
+                        placeholder="Enter address"
+                        onUpdate={onRefresh}
+                        disabled={!isOwner}
+                        className="flex-1"
+                      />
+                    </div>
+                    <div className="flex items-start gap-3">
+                      <User className="h-4 w-4 mt-1 text-muted-foreground shrink-0" />
+                      <EditableField
+                        caseId={caseData.id}
+                        field="firstName"
+                        value={caseData.firstName}
+                        label="First Name"
+                        type="text"
+                        placeholder="Enter first name"
+                        onUpdate={onRefresh}
+                        disabled={!isOwner}
+                      />
+                    </div>
+                    <div className="flex items-start gap-3">
+                      <User className="h-4 w-4 mt-1 text-muted-foreground shrink-0" />
+                      <EditableField
+                        caseId={caseData.id}
+                        field="lastName"
+                        value={caseData.lastName}
+                        label="Last Name"
+                        type="text"
+                        placeholder="Enter last name"
+                        onUpdate={onRefresh}
+                        disabled={!isOwner}
+                      />
+                    </div>
+                    <div className="flex items-start gap-3">
+                      <User className="h-4 w-4 mt-1 text-muted-foreground shrink-0" />
+                      <EditableField
+                        caseId={caseData.id}
+                        field="patientName"
+                        value={caseData.patientName}
+                        label="Patient Name"
+                        type="text"
+                        placeholder="Enter patient name"
+                        onUpdate={onRefresh}
+                        disabled={!isOwner}
+                      />
+                    </div>
+                    <div className="flex items-start gap-3">
+                      <Globe className="h-4 w-4 mt-1 text-muted-foreground shrink-0" />
+                      <EditableField
+                        caseId={caseData.id}
+                        field="nationality"
+                        value={caseData.nationality}
+                        label="Nationality"
+                        type="text"
+                        placeholder="Enter nationality"
+                        onUpdate={onRefresh}
+                        disabled={!isOwner}
+                      />
+                    </div>
+                    <div className="flex items-start gap-3 sm:col-span-2">
+                      <Globe className="h-4 w-4 mt-1 text-muted-foreground shrink-0" />
+                      <div className="min-w-0 flex-1">
+                        <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-2">Country Information</p>
+                        <div className="grid gap-4 sm:grid-cols-2">
+                          <div>
                             {caseData.isoCountry && (
-                              <Tooltip>
-                                <TooltipTrigger asChild>
-                                  <div className="flex items-center gap-2">
-                                    {getCountryFlagUrl(caseData.isoCountry) && (
-                                      <img 
-                                        src={getCountryFlagUrl(caseData.isoCountry)!} 
-                                        alt={caseData.isoCountry}
-                                        className="w-5 h-3 object-cover rounded"
-                                        onError={(e) => {
-                                          e.currentTarget.style.display = 'none'
-                                        }}
-                                      />
-                                    )}
-                                    <span className="text-sm font-medium text-foreground">
-                                      {caseData.isoCountry.toUpperCase()}
-                                    </span>
-                                  </div>
-                                </TooltipTrigger>
-                                <TooltipContent>
-                                  <p>Destination Country</p>
-                                </TooltipContent>
-                              </Tooltip>
+                              <div className="flex items-center gap-2 mb-2">
+                                {getCountryFlagUrl(caseData.isoCountry) && (
+                                  <img 
+                                    src={getCountryFlagUrl(caseData.isoCountry)!} 
+                                    alt={caseData.isoCountry}
+                                    className="w-5 h-3 object-cover rounded"
+                                    onError={(e) => {
+                                      e.currentTarget.style.display = 'none'
+                                    }}
+                                  />
+                                )}
+                              </div>
                             )}
-                            {caseData.nationality && (
-                              <Badge variant="outline" className="text-xs">
-                                {caseData.nationality}
-                              </Badge>
-                            )}
+                            <EditableField
+                              caseId={caseData.id}
+                              field="isoCountry"
+                              value={caseData.isoCountry}
+                              label="Destination Country"
+                              type="text"
+                              placeholder="e.g., US, GB, FR"
+                              onUpdate={onRefresh}
+                              disabled={!isOwner}
+                            />
+                          </div>
+                          <div>
                             {caseData.isoCountrySource && (
-                              <Tooltip>
-                                <TooltipTrigger asChild>
-                                  <div className="flex items-center gap-2">
-                                    {getCountryFlagUrl(caseData.isoCountrySource) && (
-                                      <img 
-                                        src={getCountryFlagUrl(caseData.isoCountrySource)!} 
-                                        alt={caseData.isoCountrySource}
-                                        className="w-5 h-3 object-cover rounded"
-                                        onError={(e) => {
-                                          e.currentTarget.style.display = 'none'
-                                        }}
-                                      />
-                                    )}
-                                    <span className="text-xs text-muted-foreground">
-                                      From {caseData.isoCountrySource.toUpperCase()}
-                                    </span>
-                                  </div>
-                                </TooltipTrigger>
-                                <TooltipContent>
-                                  <p>Source Country</p>
-                                </TooltipContent>
-                              </Tooltip>
+                              <div className="flex items-center gap-2 mb-2">
+                                {getCountryFlagUrl(caseData.isoCountrySource) && (
+                                  <img 
+                                    src={getCountryFlagUrl(caseData.isoCountrySource)!} 
+                                    alt={caseData.isoCountrySource}
+                                    className="w-5 h-3 object-cover rounded"
+                                    onError={(e) => {
+                                      e.currentTarget.style.display = 'none'
+                                    }}
+                                  />
+                                )}
+                              </div>
                             )}
+                            <EditableField
+                              caseId={caseData.id}
+                              field="isoCountrySource"
+                              value={caseData.isoCountrySource}
+                              label="Source Country"
+                              type="text"
+                              placeholder="e.g., US, GB, FR"
+                              onUpdate={onRefresh}
+                              disabled={!isOwner}
+                            />
                           </div>
                         </div>
                       </div>
-                    )}
+                    </div>
                   </div>
                 </CardContent>
               </Card>
 
-              {(caseData.symptoms || caseData.symptom) && (
-                <Card className="bg-card">
-                  <CardHeader>
-                    <CardTitle className="text-foreground flex items-center gap-2">
-                      <Stethoscope className="h-5 w-5" />
-                      Symptoms & Complaint
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    {caseData.symptom && caseData.symptomDetail ? (
-                      <div className="space-y-3">
-                        <div>
-                          <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1">Symptom</p>
-                          <p className="text-sm text-foreground font-medium">{caseData.symptom}</p>
-                        </div>
-                        <div>
-                          <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1">Details</p>
-                          <p className="text-sm text-foreground">{caseData.symptomDetail}</p>
-                        </div>
-                      </div>
-                    ) : (
-                      <p className="text-sm text-foreground whitespace-pre-wrap bg-muted p-4 rounded-md">
-                        {caseData.symptoms}
-                      </p>
-                    )}
-                  </CardContent>
-                </Card>
-              )}
+              <Card className="bg-card">
+                <CardHeader>
+                  <CardTitle className="text-foreground flex items-center gap-2">
+                    <Stethoscope className="h-5 w-5" />
+                    Symptoms & Complaint
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-4">
+                    <EditableField
+                      caseId={caseData.id}
+                      field="symptom"
+                      value={caseData.symptom}
+                      label="Symptom"
+                      type="text"
+                      placeholder="Enter symptom"
+                      onUpdate={onRefresh}
+                      disabled={!isOwner}
+                    />
+                    <EditableField
+                      caseId={caseData.id}
+                      field="symptomDetail"
+                      value={caseData.symptomDetail}
+                      label="Symptom Details"
+                      type="textarea"
+                      placeholder="Enter symptom details"
+                      onUpdate={onRefresh}
+                      disabled={!isOwner}
+                    />
+                    <EditableField
+                      caseId={caseData.id}
+                      field="symptoms"
+                      value={caseData.symptoms}
+                      label="Symptoms (Raw)"
+                      type="textarea"
+                      placeholder="Enter symptoms"
+                      onUpdate={onRefresh}
+                      disabled={!isOwner}
+                    />
+                  </div>
+                </CardContent>
+              </Card>
 
               <Card className="bg-card">
                 <CardHeader>
@@ -432,42 +510,56 @@ export function CaseDetail({ caseData, providers, currentUser, onRefresh }: Case
                 </CardHeader>
                 <CardContent>
                   <div className="grid gap-4 sm:grid-cols-2">
-                    {caseData.assistanceType && (
-                      <div>
-                        <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1">Assistance Type</p>
-                        <Badge variant="outline" className="mt-1">
-                          {caseData.assistanceType.replace("_", " ")}
-                        </Badge>
-                        {caseData.descAssistanceType && (
-                          <p className="text-sm text-muted-foreground mt-1">{caseData.descAssistanceType}</p>
-                        )}
-                      </div>
-                    )}
-                    {caseData.referenceNumber && (
-                      <div>
-                        <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1">Reference Number</p>
-                        <p className="text-sm text-foreground font-mono">{caseData.referenceNumber}</p>
-                      </div>
-                    )}
-                    {caseData.availability && (
-                      <div>
-                        <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1">Availability</p>
-                        <p className="text-sm text-foreground">{caseData.availability}</p>
-                      </div>
-                    )}
-                    {(caseData.triageStatus || caseData.triageLabel) && (
-                      <div>
-                        <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1">Triage</p>
-                        <div className="flex items-center gap-2 mt-1">
-                          {caseData.triageColor && (
-                            <div className={`w-3 h-3 rounded-full ${getTriageBadgeColor(caseData.triageColor)}`} />
-                          )}
-                          <span className="text-sm text-foreground">
-                            {caseData.triageLabel || caseData.triageStatus || "—"}
-                          </span>
-                        </div>
-                      </div>
-                    )}
+                    <EditableField
+                      caseId={caseData.id}
+                      field="referenceNumber"
+                      value={caseData.referenceNumber}
+                      label="Reference Number"
+                      type="text"
+                      placeholder="Enter reference number"
+                      onUpdate={onRefresh}
+                      disabled={!isOwner}
+                    />
+                    <EditableField
+                      caseId={caseData.id}
+                      field="availability"
+                      value={caseData.availability}
+                      label="Availability"
+                      type="text"
+                      placeholder="Enter availability"
+                      onUpdate={onRefresh}
+                      disabled={!isOwner}
+                    />
+                    <EditableField
+                      caseId={caseData.id}
+                      field="triageLabel"
+                      value={caseData.triageLabel}
+                      label="Triage Label"
+                      type="text"
+                      placeholder="Enter triage label"
+                      onUpdate={onRefresh}
+                      disabled={!isOwner}
+                    />
+                    <EditableField
+                      caseId={caseData.id}
+                      field="triageStatus"
+                      value={caseData.triageStatus}
+                      label="Triage Status"
+                      type="text"
+                      placeholder="Enter triage status"
+                      onUpdate={onRefresh}
+                      disabled={!isOwner}
+                    />
+                    <EditableField
+                      caseId={caseData.id}
+                      field="triageColor"
+                      value={caseData.triageColor}
+                      label="Triage Color"
+                      type="text"
+                      placeholder="red, orange, yellow, green, blue"
+                      onUpdate={onRefresh}
+                      disabled={!isOwner}
+                    />
                   </div>
                 </CardContent>
               </Card>
@@ -508,83 +600,177 @@ export function CaseDetail({ caseData, providers, currentUser, onRefresh }: Case
             </TabsContent>
 
             <TabsContent value="assistance" className="space-y-6 mt-6">
-              {(caseData.idAssist || caseData.codeAssist || caseData.clientName) && (
-                <Card className="bg-card">
-                  <CardHeader>
-                    <CardTitle className="text-foreground flex items-center gap-2">
-                      <Shield className="h-5 w-5" />
-                      Assistance Information
-                    </CardTitle>
-                    <CardDescription>Insurance and assistance provider details</CardDescription>
-                  </CardHeader>
+              <Card className="bg-card">
+                <CardHeader>
+                  <CardTitle className="text-foreground flex items-center gap-2">
+                    <Shield className="h-5 w-5" />
+                    Assistance Information
+                  </CardTitle>
+                  <CardDescription>Insurance and assistance provider details</CardDescription>
+                </CardHeader>
                   <CardContent>
                     <div className="grid gap-6 sm:grid-cols-2">
-                      {caseData.idAssist && (
-                        <div>
-                          <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1">Assistance ID</p>
-                          <p className="text-sm text-foreground font-mono font-semibold">{caseData.idAssist}</p>
-                        </div>
-                      )}
-                      {caseData.codeAssist && (
-                        <div>
-                          <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1">Assistance Code</p>
-                          <p className="text-sm text-foreground font-mono font-semibold">{caseData.codeAssist}</p>
-                        </div>
-                      )}
-                      {caseData.clientName && (
-                        <div className="sm:col-span-2">
-                          <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1">Insurance Provider</p>
-                          <div className="flex items-center gap-2 mt-1">
-                            <Building className="h-4 w-4 text-muted-foreground" />
-                            <p className="text-sm text-foreground font-medium">{caseData.clientName}</p>
-                          </div>
-                        </div>
-                      )}
-                      {caseData.descAssistanceType && (
-                        <div className="sm:col-span-2">
-                          <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1">Assistance Type Description</p>
-                          <p className="text-sm text-foreground">{caseData.descAssistanceType}</p>
-                        </div>
-                      )}
-                      {caseData.statusAssistLabel && (
-                        <div>
-                          <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1">Assistance Status</p>
-                          <Badge variant="outline" className="mt-1">
-                            {caseData.statusAssistLabel}
-                          </Badge>
-                        </div>
-                      )}
+                      <div className="flex items-start gap-3">
+                        <Hash className="h-4 w-4 mt-1 text-muted-foreground shrink-0" />
+                        <EditableField
+                          caseId={caseData.id}
+                          field="idAssist"
+                          value={caseData.idAssist}
+                          label="Assistance ID"
+                          type="number"
+                          placeholder="Enter assistance ID"
+                          onUpdate={onRefresh}
+                          disabled={!isOwner}
+                        />
+                      </div>
+                      <div className="flex items-start gap-3">
+                        <Hash className="h-4 w-4 mt-1 text-muted-foreground shrink-0" />
+                        <EditableField
+                          caseId={caseData.id}
+                          field="codeAssist"
+                          value={caseData.codeAssist}
+                          label="Assistance Code"
+                          type="text"
+                          placeholder="Enter assistance code"
+                          onUpdate={onRefresh}
+                          disabled={!isOwner}
+                        />
+                      </div>
+                      <div className="flex items-start gap-3 sm:col-span-2">
+                        <Building className="h-4 w-4 mt-1 text-muted-foreground shrink-0" />
+                        <EditableField
+                          caseId={caseData.id}
+                          field="clientName"
+                          value={caseData.clientName}
+                          label="Insurance Provider"
+                          type="text"
+                          placeholder="Enter insurance provider"
+                          onUpdate={onRefresh}
+                          disabled={!isOwner}
+                          className="flex-1"
+                        />
+                      </div>
+                      <div className="sm:col-span-2">
+                        <EditableField
+                          caseId={caseData.id}
+                          field="descAssistanceType"
+                          value={caseData.descAssistanceType}
+                          label="Assistance Type Description"
+                          type="textarea"
+                          placeholder="Enter assistance type description"
+                          onUpdate={onRefresh}
+                          disabled={!isOwner}
+                        />
+                      </div>
+                      <EditableField
+                        caseId={caseData.id}
+                        field="statusAssistLabel"
+                        value={caseData.statusAssistLabel}
+                        label="Assistance Status"
+                        type="text"
+                        placeholder="Enter assistance status"
+                        onUpdate={onRefresh}
+                        disabled={!isOwner}
+                      />
+                      <EditableField
+                        caseId={caseData.id}
+                        field="statusAssistStatus"
+                        value={caseData.statusAssistStatus}
+                        label="Status Assist Status"
+                        type="text"
+                        placeholder="Enter status"
+                        onUpdate={onRefresh}
+                        disabled={!isOwner}
+                      />
+                      <EditableField
+                        caseId={caseData.id}
+                        field="idAssistanceType"
+                        value={caseData.idAssistanceType}
+                        label="Assistance Type ID"
+                        type="number"
+                        placeholder="Enter assistance type ID"
+                        onUpdate={onRefresh}
+                        disabled={!isOwner}
+                      />
+                      <EditableField
+                        caseId={caseData.id}
+                        field="approvedStatus"
+                        value={caseData.approvedStatus}
+                        label="Approved Status"
+                        type="number"
+                        placeholder="Enter approved status"
+                        onUpdate={onRefresh}
+                        disabled={!isOwner}
+                      />
+                      <EditableField
+                        caseId={caseData.id}
+                        field="idUsersCreated"
+                        value={caseData.idUsersCreated}
+                        label="User Created ID"
+                        type="number"
+                        placeholder="Enter user ID"
+                        onUpdate={onRefresh}
+                        disabled={!isOwner}
+                      />
+                      <EditableField
+                        caseId={caseData.id}
+                        field="statusAssistIcon"
+                        value={caseData.statusAssistIcon}
+                        label="Status Assist Icon"
+                        type="text"
+                        placeholder="Enter icon name"
+                        onUpdate={onRefresh}
+                        disabled={!isOwner}
+                      />
+                      <EditableField
+                        caseId={caseData.id}
+                        field="view"
+                        value={caseData.view}
+                        label="View"
+                        type="text"
+                        placeholder="Enter view"
+                        onUpdate={onRefresh}
+                        disabled={!isOwner}
+                      />
                     </div>
                   </CardContent>
                 </Card>
-              )}
 
-              {(caseData.passport || caseData.isoCountry || caseData.isoCountrySource || caseData.origin) && (
-                <Card className="bg-card">
-                  <CardHeader>
-                    <CardTitle className="text-foreground flex items-center gap-2">
-                      <Plane className="h-5 w-5" />
-                      Travel Information
-                    </CardTitle>
-                  </CardHeader>
+              <Card className="bg-card">
+                <CardHeader>
+                  <CardTitle className="text-foreground flex items-center gap-2">
+                    <Plane className="h-5 w-5" />
+                    Travel Information
+                  </CardTitle>
+                </CardHeader>
                   <CardContent>
                     <div className="grid gap-6 sm:grid-cols-2">
-                      {caseData.passport && (
-                        <div>
-                          <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1">Passport/Document</p>
-                          <p className="text-sm text-foreground font-mono">{caseData.passport}</p>
-                        </div>
-                      )}
-                      {caseData.origin && (
-                        <div>
-                          <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1">Contact Origin</p>
-                          <p className="text-sm text-foreground">{caseData.origin}</p>
-                        </div>
-                      )}
-                      {caseData.isoCountrySource && (
-                        <div>
-                          <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1">From Country</p>
-                          <div className="flex items-center gap-2 mt-1">
+                      <div className="flex items-start gap-3">
+                        <Shield className="h-4 w-4 mt-1 text-muted-foreground shrink-0" />
+                        <EditableField
+                          caseId={caseData.id}
+                          field="passport"
+                          value={caseData.passport}
+                          label="Passport/Document"
+                          type="text"
+                          placeholder="Enter passport number"
+                          onUpdate={onRefresh}
+                          disabled={!isOwner}
+                        />
+                      </div>
+                      <EditableField
+                        caseId={caseData.id}
+                        field="origin"
+                        value={caseData.origin}
+                        label="Contact Origin"
+                        type="text"
+                        placeholder="Enter contact origin"
+                        onUpdate={onRefresh}
+                        disabled={!isOwner}
+                      />
+                      <div>
+                        {caseData.isoCountrySource && (
+                          <div className="flex items-center gap-2 mb-2">
                             {getCountryFlagUrl(caseData.isoCountrySource) && (
                               <img 
                                 src={getCountryFlagUrl(caseData.isoCountrySource)!} 
@@ -595,16 +781,22 @@ export function CaseDetail({ caseData, providers, currentUser, onRefresh }: Case
                                 }}
                               />
                             )}
-                            <span className="text-sm text-foreground font-medium">
-                              {caseData.isoCountrySource.toUpperCase()}
-                            </span>
                           </div>
-                        </div>
-                      )}
-                      {caseData.isoCountry && (
-                        <div>
-                          <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1">Destination Country</p>
-                          <div className="flex items-center gap-2 mt-1">
+                        )}
+                        <EditableField
+                          caseId={caseData.id}
+                          field="isoCountrySource"
+                          value={caseData.isoCountrySource}
+                          label="From Country"
+                          type="text"
+                          placeholder="e.g., US, GB, FR"
+                          onUpdate={onRefresh}
+                          disabled={!isOwner}
+                        />
+                      </div>
+                      <div>
+                        {caseData.isoCountry && (
+                          <div className="flex items-center gap-2 mb-2">
                             {getCountryFlagUrl(caseData.isoCountry) && (
                               <img 
                                 src={getCountryFlagUrl(caseData.isoCountry)!} 
@@ -615,16 +807,22 @@ export function CaseDetail({ caseData, providers, currentUser, onRefresh }: Case
                                 }}
                               />
                             )}
-                            <span className="text-sm text-foreground font-medium">
-                              {caseData.isoCountry.toUpperCase()}
-                            </span>
                           </div>
-                        </div>
-                      )}
+                        )}
+                        <EditableField
+                          caseId={caseData.id}
+                          field="isoCountry"
+                          value={caseData.isoCountry}
+                          label="Destination Country"
+                          type="text"
+                          placeholder="e.g., US, GB, FR"
+                          onUpdate={onRefresh}
+                          disabled={!isOwner}
+                        />
+                      </div>
                     </div>
                   </CardContent>
                 </Card>
-              )}
 
               <Card className="bg-card">
                 <CardHeader>
@@ -634,34 +832,57 @@ export function CaseDetail({ caseData, providers, currentUser, onRefresh }: Case
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="flex flex-wrap gap-2">
-                    {caseData.codigo && (
-                      <Badge variant="outline">
-                        Code: {caseData.codigo}
-                      </Badge>
-                    )}
-                    {caseData.prefijo && (
-                      <Badge variant="outline">
-                        Prefix: {caseData.prefijo}
-                      </Badge>
-                    )}
-                    {caseData.refund === 'Y' && (
-                      <Badge variant="default" className="bg-green-600">
-                        <CheckCircle2 className="h-3 w-3 mr-1" />
-                        Refund Eligible
-                      </Badge>
-                    )}
-                    {caseData.voucherIsManual === 'Y' && (
-                      <Badge variant="default" className="bg-amber-600">
-                        <AlertCircle className="h-3 w-3 mr-1" />
-                        Manual Voucher
-                      </Badge>
-                    )}
-                    {caseData.canCancelVoucher && (
-                      <Badge variant="outline">
-                        Cancel: {caseData.canCancelVoucher}
-                      </Badge>
-                    )}
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    <EditableField
+                      caseId={caseData.id}
+                      field="codigo"
+                      value={caseData.codigo}
+                      label="Code"
+                      type="text"
+                      placeholder="Enter code"
+                      onUpdate={onRefresh}
+                      disabled={!isOwner}
+                    />
+                    <EditableField
+                      caseId={caseData.id}
+                      field="prefijo"
+                      value={caseData.prefijo}
+                      label="Prefix"
+                      type="text"
+                      placeholder="Enter prefix"
+                      onUpdate={onRefresh}
+                      disabled={!isOwner}
+                    />
+                    <EditableField
+                      caseId={caseData.id}
+                      field="refund"
+                      value={caseData.refund}
+                      label="Refund"
+                      type="text"
+                      placeholder="Y or N"
+                      onUpdate={onRefresh}
+                      disabled={!isOwner}
+                    />
+                    <EditableField
+                      caseId={caseData.id}
+                      field="voucherIsManual"
+                      value={caseData.voucherIsManual}
+                      label="Voucher Is Manual"
+                      type="text"
+                      placeholder="Y or N"
+                      onUpdate={onRefresh}
+                      disabled={!isOwner}
+                    />
+                    <EditableField
+                      caseId={caseData.id}
+                      field="canCancelVoucher"
+                      value={caseData.canCancelVoucher}
+                      label="Can Cancel Voucher"
+                      type="text"
+                      placeholder="Enter value"
+                      onUpdate={onRefresh}
+                      disabled={!isOwner}
+                    />
                   </div>
                 </CardContent>
               </Card>
@@ -676,18 +897,26 @@ export function CaseDetail({ caseData, providers, currentUser, onRefresh }: Case
                   </CardHeader>
                   <CardContent>
                     <div className="grid gap-4 sm:grid-cols-2">
-                      {caseData.specialityLocation && (
-                        <div>
-                          <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1">Specialty/Location</p>
-                          <p className="text-sm text-foreground">{caseData.specialityLocation}</p>
-                        </div>
-                      )}
-                      {caseData.assignedToAssistance && (
-                        <div>
-                          <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1">Assigned To Assistance</p>
-                          <p className="text-sm text-foreground">{caseData.assignedToAssistance}</p>
-                        </div>
-                      )}
+                      <EditableField
+                        caseId={caseData.id}
+                        field="specialityLocation"
+                        value={caseData.specialityLocation}
+                        label="Specialty/Location"
+                        type="text"
+                        placeholder="Enter specialty/location"
+                        onUpdate={onRefresh}
+                        disabled={!isOwner}
+                      />
+                      <EditableField
+                        caseId={caseData.id}
+                        field="assignedToAssistance"
+                        value={caseData.assignedToAssistance}
+                        label="Assigned To Assistance"
+                        type="text"
+                        placeholder="Enter assigned to assistance"
+                        onUpdate={onRefresh}
+                        disabled={!isOwner}
+                      />
                     </div>
                   </CardContent>
                 </Card>
@@ -704,34 +933,50 @@ export function CaseDetail({ caseData, providers, currentUser, onRefresh }: Case
                 </CardHeader>
                 <CardContent>
                   <div className="grid gap-6 sm:grid-cols-2">
-                    {(caseData.symptom || caseData.symptomDetail) && (
-                      <div className="sm:col-span-2">
-                        <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-2">Symptoms</p>
-                        {caseData.symptom && (
-                          <p className="text-sm text-foreground font-medium mb-1">{caseData.symptom}</p>
-                        )}
-                        {caseData.symptomDetail && (
-                          <p className="text-sm text-muted-foreground">{caseData.symptomDetail}</p>
-                        )}
-                      </div>
-                    )}
-                    {caseData.specialityLocation && (
-                      <div>
-                        <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1">Specialty</p>
-                        <p className="text-sm text-foreground">{caseData.specialityLocation}</p>
-                      </div>
-                    )}
-                    {caseData.triageLabel && (
-                      <div>
-                        <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1">Triage Level</p>
-                        <div className="flex items-center gap-2 mt-1">
-                          {caseData.triageColor && (
-                            <div className={`w-3 h-3 rounded-full ${getTriageBadgeColor(caseData.triageColor)}`} />
-                          )}
-                          <span className="text-sm text-foreground">{caseData.triageLabel}</span>
-                        </div>
-                      </div>
-                    )}
+                    <div className="sm:col-span-2">
+                      <EditableField
+                        caseId={caseData.id}
+                        field="symptom"
+                        value={caseData.symptom}
+                        label="Symptom"
+                        type="text"
+                        placeholder="Enter symptom"
+                        onUpdate={onRefresh}
+                        disabled={!isOwner}
+                      />
+                    </div>
+                    <div className="sm:col-span-2">
+                      <EditableField
+                        caseId={caseData.id}
+                        field="symptomDetail"
+                        value={caseData.symptomDetail}
+                        label="Symptom Details"
+                        type="textarea"
+                        placeholder="Enter symptom details"
+                        onUpdate={onRefresh}
+                        disabled={!isOwner}
+                      />
+                    </div>
+                    <EditableField
+                      caseId={caseData.id}
+                      field="specialityLocation"
+                      value={caseData.specialityLocation}
+                      label="Specialty"
+                      type="text"
+                      placeholder="Enter specialty"
+                      onUpdate={onRefresh}
+                      disabled={!isOwner}
+                    />
+                    <EditableField
+                      caseId={caseData.id}
+                      field="triageLabel"
+                      value={caseData.triageLabel}
+                      label="Triage Level"
+                      type="text"
+                      placeholder="Enter triage level"
+                      onUpdate={onRefresh}
+                      disabled={!isOwner}
+                    />
                   </div>
                 </CardContent>
               </Card>
@@ -749,18 +994,24 @@ export function CaseDetail({ caseData, providers, currentUser, onRefresh }: Case
                       <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1">Case Created</p>
                       <p className="text-sm text-foreground">{format(new Date(caseData.createdAt), "PPpp")}</p>
                     </div>
-                    {caseData.reportedDate && (
-                      <div>
-                        <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1">Reported Date</p>
-                        <p className="text-sm text-foreground">{format(new Date(caseData.reportedDate), "PPpp")}</p>
-                      </div>
-                    )}
-                    {caseData.registeredDate && (
-                      <div>
-                        <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1">Registered Date</p>
-                        <p className="text-sm text-foreground">{format(new Date(caseData.registeredDate), "PPpp")}</p>
-                      </div>
-                    )}
+                    <EditableField
+                      caseId={caseData.id}
+                      field="reportedDate"
+                      value={caseData.reportedDate}
+                      label="Reported Date"
+                      type="date"
+                      onUpdate={onRefresh}
+                      disabled={!isOwner}
+                    />
+                    <EditableField
+                      caseId={caseData.id}
+                      field="registeredDate"
+                      value={caseData.registeredDate}
+                      label="Registered Date"
+                      type="date"
+                      onUpdate={onRefresh}
+                      disabled={!isOwner}
+                    />
                     {caseData.emailReceivedAt && (
                       <div>
                         <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1">Email Received</p>
