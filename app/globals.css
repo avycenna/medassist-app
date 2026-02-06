@@ -4,29 +4,29 @@
 @custom-variant dark (&:is(.dark *));
 
 :root {
-  /* Professional Medical Theme - Clean & Neutral */
-  --background: oklch(0.985 0.002 240);
-  --foreground: oklch(0.18 0.02 260);
+  /* Modern Medical Theme - Contemporary & Clean */
+  --background: oklch(0.98 0.001 240);
+  --foreground: oklch(0.16 0.025 255);
   --card: oklch(1 0 0);
-  --card-foreground: oklch(0.18 0.02 260);
+  --card-foreground: oklch(0.16 0.025 255);
   --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.18 0.02 260);
-  /* Primary - Teal/Medical Blue */
-  --primary: oklch(0.45 0.12 200);
+  --popover-foreground: oklch(0.16 0.025 255);
+  /* Primary - Vibrant Medical Blue */
+  --primary: oklch(0.48 0.15 210);
   --primary-foreground: oklch(0.99 0 0);
-  /* Secondary - Soft Gray */
-  --secondary: oklch(0.96 0.005 240);
-  --secondary-foreground: oklch(0.25 0.02 260);
-  --muted: oklch(0.96 0.005 240);
-  --muted-foreground: oklch(0.50 0.02 260);
-  /* Accent - Soft Teal */
-  --accent: oklch(0.92 0.03 200);
-  --accent-foreground: oklch(0.35 0.10 200);
-  --destructive: oklch(0.55 0.22 25);
+  /* Secondary - Mint Accent */
+  --secondary: oklch(0.75 0.12 160);
+  --secondary-foreground: oklch(0.20 0.02 260);
+  --muted: oklch(0.94 0.008 240);
+  --muted-foreground: oklch(0.55 0.015 240);
+  /* Accent - Soft Cyan/Teal */
+  --accent: oklch(0.70 0.12 180);
+  --accent-foreground: oklch(0.20 0.02 190);
+  --destructive: oklch(0.60 0.22 20);
   --destructive-foreground: oklch(0.98 0.01 25);
-  --border: oklch(0.90 0.01 240);
-  --input: oklch(0.90 0.01 240);
-  --ring: oklch(0.45 0.12 200);
+  --border: oklch(0.92 0.008 240);
+  --input: oklch(0.95 0.006 240);
+  --ring: oklch(0.48 0.15 210);
   /* Status colors for cases */
   --status-pending: oklch(0.75 0.15 85);
   --status-assigned: oklch(0.60 0.15 250);
@@ -51,25 +51,25 @@
 }
 
 .dark {
-  --background: oklch(0.14 0.015 260);
-  --foreground: oklch(0.95 0.005 240);
-  --card: oklch(0.18 0.015 260);
-  --card-foreground: oklch(0.95 0.005 240);
-  --popover: oklch(0.18 0.015 260);
-  --popover-foreground: oklch(0.95 0.005 240);
-  --primary: oklch(0.55 0.14 200);
-  --primary-foreground: oklch(0.14 0.015 260);
-  --secondary: oklch(0.25 0.015 260);
-  --secondary-foreground: oklch(0.95 0.005 240);
-  --muted: oklch(0.25 0.015 260);
-  --muted-foreground: oklch(0.65 0.01 240);
-  --accent: oklch(0.30 0.05 200);
-  --accent-foreground: oklch(0.85 0.08 200);
-  --destructive: oklch(0.50 0.20 25);
+  --background: oklch(0.12 0.018 260);
+  --foreground: oklch(0.97 0.006 240);
+  --card: oklch(0.16 0.018 260);
+  --card-foreground: oklch(0.97 0.006 240);
+  --popover: oklch(0.16 0.018 260);
+  --popover-foreground: oklch(0.97 0.006 240);
+  --primary: oklch(0.58 0.16 210);
+  --primary-foreground: oklch(0.12 0.018 260);
+  --secondary: oklch(0.65 0.12 160);
+  --secondary-foreground: oklch(0.12 0.018 260);
+  --muted: oklch(0.28 0.018 260);
+  --muted-foreground: oklch(0.68 0.012 240);
+  --accent: oklch(0.65 0.13 180);
+  --accent-foreground: oklch(0.12 0.018 260);
+  --destructive: oklch(0.55 0.20 20);
   --destructive-foreground: oklch(0.95 0.02 25);
-  --border: oklch(0.28 0.015 260);
-  --input: oklch(0.28 0.015 260);
-  --ring: oklch(0.55 0.14 200);
+  --border: oklch(0.24 0.018 260);
+  --input: oklch(0.24 0.018 260);
+  --ring: oklch(0.58 0.16 210);
   --status-pending: oklch(0.70 0.15 85);
   --status-assigned: oklch(0.55 0.15 250);
   --status-in-progress: oklch(0.60 0.18 200);
