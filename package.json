@@ -8,7 +8,8 @@
     "lint": "eslint .",
     "start": "next start",
     "prepare": "next-ws patch",
-    "load-wta": "ts-node scripts/load-wta-data.ts"
+    "load-wta": "ts-node scripts/load-wta-data.ts",
+    "postinstall": "prisma generate"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.10.0",
