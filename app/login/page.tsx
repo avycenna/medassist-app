@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import { Stethoscope, Loader2 } from "lucide-react"
+import { Loader2 } from "lucide-react"
 import { login } from "@/lib/actions/auth"
 
 export default function LoginPage() {
@@ -33,9 +33,11 @@ export default function LoginPage() {
       <div className="w-full max-w-md">
         <div className="flex flex-col items-center mb-8">
           <div className="flex items-center gap-2 mb-2">
-            <div className="p-2 bg-primary rounded-lg">
-              <Stethoscope className="h-6 w-6 text-primary-foreground" />
-            </div>
+            <img 
+              src="/logo.png" 
+              alt="MedSupport" 
+              className="h-10 w-10 object-contain"
+            />
             <span className="text-2xl font-semibold text-foreground">MedSupportTravel</span>
           </div>
           <p className="text-muted-foreground text-sm">Medical Case Management Platform</p>

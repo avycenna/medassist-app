@@ -1,10 +1,10 @@
 "use client"
 
-import React, { useEffect, useRef } from "react"
+import React, { useEffect, useRef, useState } from "react"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { 
-  Stethoscope, 
+  Stethoscope,
   Shield, 
   Mail, 
   Users, 
@@ -32,11 +32,17 @@ import {
   Calendar,
   UserCheck,
   Activity,
-  BarChart3
+  BarChart3,
+  LayoutDashboard,
+  FolderKanban
 } from "lucide-react"
 
 export default function HomePage() {
   const parallaxRefs = useRef<(HTMLDivElement | null)[]>([])
+  const [activeCard, setActiveCard] = useState(0)
+  const [progress, setProgress] = useState(0)
+  const dashboardParallaxRef = useRef<HTMLDivElement>(null)
+  const mountedRef = useRef(true)
 
   useEffect(() => {
     const handleScroll = () => {
@@ -47,22 +53,70 @@ export default function HomePage() {
           ref.style.transform = `translateY(${rate}px)`
         }
       })
+
+      if (dashboardParallaxRef.current) {
+        const scrolled = window.pageYOffset
+        const rect = dashboardParallaxRef.current.getBoundingClientRect()
+        const elementTop = rect.top + scrolled
+        const elementHeight = rect.height
+        const viewportHeight = window.innerHeight
+        
+        if (scrolled + viewportHeight > elementTop && scrolled < elementTop + elementHeight) {
+          const progress = ((scrolled + viewportHeight - elementTop) / (elementHeight + viewportHeight)) * 100
+          const rate = progress * 0.5
+          dashboardParallaxRef.current.style.transform = `translateY(${rate}px)`
+        }
+      }
     }
 
     window.addEventListener('scroll', handleScroll)
     return () => window.removeEventListener('scroll', handleScroll)
   }, [])
 
+  useEffect(() => {
+    const progressInterval = setInterval(() => {
+      if (!mountedRef.current) return
+
+      setProgress((prev: number) => {
+        if (prev >= 100) {
+          if (mountedRef.current) {
+            setActiveCard((current: number) => (current + 1) % 2)
+          }
+          return 0
+        }
+        return prev + 2
+      })
+    }, 100)
+
+    return () => {
+      clearInterval(progressInterval)
+      mountedRef.current = false
+    }
+  }, [])
+
+  useEffect(() => {
+    return () => {
+      mountedRef.current = false
+    }
+  }, [])
+
+  const handleCardClick = (index: number) => {
+    if (!mountedRef.current) return
+    setActiveCard(index)
+    setProgress(0)
+  }
+
   return (
     <div className="min-h-screen bg-background">
       <header className="fixed top-0 z-50 w-full border-b border-border/50 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 transition-all">
         <div className="container mx-auto px-4 py-4 max-w-7xl flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="p-2 bg-gradient-to-br from-primary to-primary/70 rounded-lg">
-              <Stethoscope className="h-5 w-5 text-primary-foreground" />
-            </div>
-            <span className="text-lg font-bold text-foreground">MedAssist</span>
-          </div>
+          <Link href="/" className="flex items-center gap-3 hover:opacity-80 transition-opacity">
+            <img 
+              src="/logo.png" 
+              alt="MedSupport" 
+              className="h-15 w-auto object-contain"
+            />
+          </Link>
           <nav className="hidden md:flex items-center gap-8">
             <a href="#home" className="text-sm text-muted-foreground hover:text-foreground transition-colors">Home</a>
             <a href="#services" className="text-sm text-muted-foreground hover:text-foreground transition-colors">Services</a>
@@ -138,6 +192,84 @@ export default function HomePage() {
         </div>
       </section>
 
+      <section className="py-20 px-4 relative overflow-hidden bg-gradient-to-b from-background via-card/30 to-background">
+        <div className="absolute inset-0 -z-10">
+          <div 
+            ref={(el) => { parallaxRefs.current[7] = el }}
+            className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-accent/5"
+          />
+        </div>
+        
+        <div className="container mx-auto max-w-6xl relative z-10">
+          <div className="text-center space-y-4 mb-12">
+            <div className="inline-flex items-center gap-2 px-4 py-2 bg-accent/20 border border-accent/50 rounded-full text-sm text-foreground">
+              <Activity className="h-4 w-4 text-primary" />
+              <span>Platform Overview</span>
+            </div>
+            <h2 className="text-3xl sm:text-4xl md:text-5xl font-bold text-balance">
+              Powerful Dashboard for <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary to-primary/70">Medical Case Management</span>
+            </h2>
+            <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
+              Experience seamless case tracking, real-time updates, and comprehensive medical assistance coordination
+            </p>
+          </div>
+
+          <div className="w-full max-w-5xl mx-auto mb-8">
+            <div 
+              ref={dashboardParallaxRef}
+              className="w-full h-[400px] sm:h-[500px] md:h-[600px] lg:h-[700px] bg-card border border-border/50 rounded-xl shadow-2xl overflow-hidden relative"
+            >
+              <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-accent/5" />
+              
+              <div className="relative w-full h-full flex items-center justify-center overflow-hidden">
+                <div className="absolute inset-0">
+                  <div className={`absolute inset-0 transition-all duration-700 ease-in-out ${
+                    activeCard === 0 ? "opacity-100 scale-100 blur-0 z-10" : "opacity-0 scale-95 blur-sm z-0"
+                  }`}>
+                    <img
+                      src="/cases.png"
+                      alt="Cases Overview Dashboard"
+                      className="w-full h-full object-cover"
+                    />
+                  </div>
+                  
+                  <div className={`absolute inset-0 transition-all duration-700 ease-in-out ${
+                    activeCard === 1 ? "opacity-100 scale-100 blur-0 z-10" : "opacity-0 scale-95 blur-sm z-0"
+                  }`}>
+                    <img
+                      src="/case.png"
+                      alt="Detailed Case View"
+                      className="w-full h-full object-cover"
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="w-full max-w-5xl mx-auto">
+            <div className="grid gap-0 md:grid-cols-2 border border-border/50 rounded-xl overflow-hidden bg-card/50">
+              <DashboardFeatureCard
+                title="Case Overview"
+                description="Real-time dashboard with comprehensive case statistics and status tracking"
+                isActive={activeCard === 0}
+                progress={activeCard === 0 ? progress : 0}
+                onClick={() => handleCardClick(0)}
+                icon={LayoutDashboard}
+              />
+              <DashboardFeatureCard
+                title="Case Details"
+                description="Detailed case information with patient data, medical history, and treatment plans"
+                isActive={activeCard === 1}
+                progress={activeCard === 1 ? progress : 0}
+                onClick={() => handleCardClick(1)}
+                icon={FolderKanban}
+              />
+            </div>
+          </div>
+        </div>
+      </section>
+
       <section id="about" className="py-20 px-4 bg-card/30 border-y border-border/50 relative overflow-hidden">
         <div 
           ref={(el) => { parallaxRefs.current[3] = el }}
@@ -147,18 +279,18 @@ export default function HomePage() {
           <div className="text-center space-y-4 mb-12">
             <h2 className="text-3xl sm:text-4xl md:text-5xl font-bold text-balance">OUR VISION</h2>
             <p className="text-lg text-muted-foreground max-w-3xl mx-auto">
-              MedAssist is committed to being the most trusted provider of medical travel assistance.
+              MedSupport is committed to being the most trusted provider of medical travel assistance.
             </p>
           </div>
           <div className="space-y-6 text-muted-foreground">
             <VisionCard
               title="Direct Provider Network"
-              description="MedAssist has a network of medical and non-medical providers, arranged directly, so the Company-Client does not pay any duplication of the service fee."
+              description="MedSupport has a network of medical and non-medical providers, arranged directly, so the Company-Client does not pay any duplication of the service fee."
               icon={Users}
             />
             <VisionCard
               title="Tailored Service Organization"
-              description="Being available to a wide network of providers in each locality, MedAssist, in accordance with the authorization of the Company-Client organizes the most appropriate service to the pathology and the beneficiary's requirements."
+              description="Being available to a wide network of providers in each locality, MedSupport, in accordance with the authorization of the Company-Client organizes the most appropriate service to the pathology and the beneficiary's requirements."
               icon={Activity}
             />
             <VisionCard
@@ -168,12 +300,12 @@ export default function HomePage() {
             />
             <VisionCard
               title="Local Market Pricing"
-              description="The direct contracting of suppliers allows MedAssist to negotiate prices per service based on the average prices of that specific service in the local market."
+              description="The direct contracting of suppliers allows MedSupport to negotiate prices per service based on the average prices of that specific service in the local market."
               icon={BarChart3}
             />
             <VisionCard
               title="Volume-Based Negotiations"
-              description="MedAssist negotiates costs based on the average price of the particular service within the locality, based on criteria of concentration of volume of cases and prompt payment."
+              description="MedSupport negotiates costs based on the average price of the particular service within the locality, based on criteria of concentration of volume of cases and prompt payment."
               icon={FileText}
             />
             <VisionCard
@@ -205,14 +337,14 @@ export default function HomePage() {
               icon={AlertCircle}
               title="EMERGENCY SERVICES"
               subtitle="24/7 Emergency Care"
-              description="MedAssist has, in all the localities of its coverage areas, emergency services, either in private and/or public entities, where General Medicine, Internal Medicine, Radiology, and Traumatology services are offered."
+              description="MedSupport has, in all the localities of its coverage areas, emergency services, either in private and/or public entities, where General Medicine, Internal Medicine, Radiology, and Traumatology services are offered."
               gradient="from-red-500/20 to-red-500/5"
             />
             <ServiceCard
               icon={Stethoscope}
               title="SPECIALIST DOCTORS"
               subtitle="Expert Medical Specialists"
-              description="In the most important localities, MedAssist has 24-hour emergency services with specialists such as traumatology, pediatrics, gynecology, ophthalmology."
+              description="In the most important localities, MedSupport has 24-hour emergency services with specialists such as traumatology, pediatrics, gynecology, ophthalmology."
               gradient="from-purple-500/20 to-purple-500/5"
             />
             <ServiceCard
@@ -326,7 +458,7 @@ export default function HomePage() {
               role="Travel Manager"
               company="Global Corp"
               rating={5}
-              text="MedAssist has been invaluable for our international employees. Their 24/7 service and professional network give us complete peace of mind."
+              text="MedSupport has been invaluable for our international employees. Their 24/7 service and professional network give us complete peace of mind."
             />
             <TestimonialCard
               name="Michael Chen"
@@ -340,7 +472,7 @@ export default function HomePage() {
               role="Operations Manager"
               company="Travel Agency"
               rating={5}
-              text="Outstanding service quality and response time. MedAssist has become our trusted partner for all medical travel assistance needs."
+              text="Outstanding service quality and response time. MedSupport has become our trusted partner for all medical travel assistance needs."
             />
           </div>
         </div>
@@ -349,7 +481,7 @@ export default function HomePage() {
       <section className="py-20 px-4 bg-card/50">
         <div className="container mx-auto max-w-4xl">
           <div className="text-center space-y-8">
-            <h2 className="text-3xl sm:text-4xl md:text-5xl font-bold text-balance">Why Choose MedAssist?</h2>
+            <h2 className="text-3xl sm:text-4xl md:text-5xl font-bold text-balance">Why Choose MedSupport?</h2>
             <div className="grid gap-6 md:grid-cols-2">
               <FeatureHighlight
                 icon={Shield}
@@ -390,17 +522,21 @@ export default function HomePage() {
             <ContactCard
               icon={MapPin}
               title="Address"
-              content="15 rue des halles 75001 Paris"
+              content="90000 Tanger
+Tanger-Tétouan
+TANGER
+TANGER-TÉTOUAN 90000
+Morocco"
             />
             <ContactCard
               icon={Phone}
               title="Phone"
-              content="+33 9 726 538 27"
+              content="+212 66 56 63 538"
             />
             <ContactCard
               icon={Mail}
               title="Email"
-              content="contact@medassist.com"
+              content="operations@medsupporttravel.com"
             />
             <ContactCard
               icon={Clock}
@@ -416,8 +552,12 @@ export default function HomePage() {
           <div className="grid gap-8 md:grid-cols-4 mb-8">
             <div>
               <div className="flex items-center gap-2 mb-4">
-                <Stethoscope className="h-5 w-5" />
-                <span className="font-semibold text-foreground">MedAssist</span>
+                <img 
+                  src="/logo.png" 
+                  alt="MedSupport" 
+                  className="h-9 w-9 object-contain"
+                />
+                <span className="font-semibold text-foreground">MedSupport</span>
               </div>
               <p className="text-sm text-muted-foreground">
                 Trusted provider of medical travel assistance worldwide.
@@ -450,10 +590,10 @@ export default function HomePage() {
             </div>
           </div>
           <div className="flex flex-col sm:flex-row items-center justify-between gap-6 text-sm text-muted-foreground pt-8 border-t border-border/50">
-            <p>Medical Travel Assistance © 2026 MedAssist. All rights reserved.</p>
+            <p>Medical Support Travel © 2026 MedSupportTravel. All rights reserved.</p>
             <div className="flex gap-6">
-              <a href="#" className="hover:text-foreground transition-colors">Privacy</a>
-              <a href="#" className="hover:text-foreground transition-colors">Terms</a>
+              <Link href="/privacy" className="hover:text-foreground transition-colors">Privacy</Link>
+              <Link href="/terms" className="hover:text-foreground transition-colors">Terms</Link>
               <a href="#contact" className="hover:text-foreground transition-colors">Contact</a>
             </div>
           </div>
@@ -648,6 +788,64 @@ function ContactCard({
         <h3 className="font-semibold text-foreground">{title}</h3>
       </div>
       <p className="text-muted-foreground">{content}</p>
+    </div>
+  )
+}
+
+function DashboardFeatureCard({
+  title,
+  description,
+  isActive,
+  progress,
+  onClick,
+  icon: Icon
+}: {
+  title: string
+  description: string
+  isActive: boolean
+  progress: number
+  onClick: () => void
+  icon: React.ElementType
+}) {
+  return (
+    <div
+      className={`
+        w-full px-6 py-5 flex flex-col justify-start items-start gap-2 cursor-pointer relative
+        border-r-0 md:border-r border-border/50 last:border-r-0
+        transition-all duration-300
+        ${isActive
+          ? "bg-card shadow-[0px_0px_0px_1px_hsl(var(--border))_inset]"
+          : "bg-card/50 hover:bg-card/80"
+        }
+      `}
+      onClick={onClick}
+    >
+      {isActive && (
+        <div className="absolute top-0 left-0 w-full h-0.5 bg-border">
+          <div
+            className="h-full bg-primary transition-all duration-100 ease-linear"
+            style={{ width: `${progress}%` }}
+          />
+        </div>
+      )}
+
+      <div className="flex items-center gap-3 mb-2">
+        <div className={`h-8 w-8 rounded-lg flex items-center justify-center transition-colors ${
+          isActive ? "bg-primary/20" : "bg-primary/10"
+        }`}>
+          <Icon className={`h-4 w-4 transition-colors ${
+            isActive ? "text-primary" : "text-primary/70"
+          }`} />
+        </div>
+        <h3 className={`text-sm font-semibold transition-colors ${
+          isActive ? "text-foreground" : "text-muted-foreground"
+        }`}>
+          {title}
+        </h3>
+      </div>
+      <p className="text-xs text-muted-foreground leading-relaxed">
+        {description}
+      </p>
     </div>
   )
 }

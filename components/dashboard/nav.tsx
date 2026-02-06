@@ -14,7 +14,6 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { 
-  Stethoscope, 
   LayoutDashboard, 
   FolderKanban, 
   Users, 
@@ -77,10 +76,12 @@ export function DashboardNav({ user }: DashboardNavProps) {
       <div className="container mx-auto px-4 max-w-7xl">
         <div className="flex h-16 items-center justify-between">
           {/* Logo */}
-          <Link href="/dashboard" className="flex items-center gap-2">
-            <div className="p-1.5 bg-primary rounded-md">
-              <Stethoscope className="h-5 w-5 text-primary-foreground" />
-            </div>
+          <Link href="/dashboard" className="flex items-center gap-2 hover:opacity-80 transition-opacity">
+            <img 
+              src="/logo.png" 
+              alt="MedSupport" 
+              className="h-8 w-8 object-contain"
+            />
             <span className="text-lg font-semibold text-foreground hidden sm:inline">
               MedSupportTravel
             </span>
