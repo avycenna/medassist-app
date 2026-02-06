@@ -1,27 +1,44 @@
-import { PrismaClient } from "@prisma/client"
-import { PrismaPg } from "@prisma/adapter-pg"
-import { Pool } from "pg"
+let prismaInstance: any = null
 
-// Prevent multiple instances of Prisma Client in development
-const globalForPrisma = globalThis as unknown as {
-  prisma: PrismaClient | undefined
-  pool: Pool | undefined
-}
+export function getPrismaClient() {
+  if (prismaInstance) {
+    return prismaInstance
+  }
 
-// Create a connection pool
-const pool = globalForPrisma.pool ?? new Pool({ connectionString: process.env.DATABASE_URL })
-if (process.env.NODE_ENV !== "production") globalForPrisma.pool = pool
+  const globalForPrisma = globalThis as unknown as {
+    prisma: any
+    pool: any
+  }
 
-// Create the adapter
-const adapter = new PrismaPg(pool)
+  if (globalForPrisma.prisma) {
+    return globalForPrisma.prisma
+  }
 
-export const prisma =
-  globalForPrisma.prisma ??
-  new PrismaClient({
+  if (!process.env.DATABASE_URL) {
+    throw new Error("DATABASE_URL environment variable is not set")
+  }
+
+  // Lazy load Prisma only when needed
+  const { PrismaClient } = require("@prisma/client")
+  const { PrismaPg } = require("@prisma/adapter-pg")
+  const { Pool } = require("pg")
+
+  // Create a connection pool
+  const pool = globalForPrisma.pool ?? new Pool({ connectionString: process.env.DATABASE_URL })
+  if (process.env.NODE_ENV !== "production") globalForPrisma.pool = pool
+
+  // Create the adapter
+  const adapter = new PrismaPg(pool)
+
+  prismaInstance = new PrismaClient({
     adapter,
     log: process.env.NODE_ENV === "development" ? ["query", "error", "warn"] : ["error"],
   })
 
-if (process.env.NODE_ENV !== "production") globalForPrisma.prisma = prisma
+  if (process.env.NODE_ENV !== "production") globalForPrisma.prisma = prismaInstance
 
+  return prismaInstance
+}
+
+export const prisma = getPrismaClient()
 export default prisma
