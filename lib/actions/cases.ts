@@ -272,7 +272,6 @@ export async function getDashboardStats() {
   return { pending, assigned, inProgress, completed, cancelled, total }
 }
 
-// Create a case manually
 export async function createCase(data: {
   patientName?: string
   firstName?: string
@@ -281,8 +280,40 @@ export async function createCase(data: {
   address?: string
   phoneNumber?: string
   email?: string
-  symptoms?: string
+  nationality?: string
   assistanceType?: AssistanceType
+  referenceNumber?: string
+  availability?: string
+  isoCountry?: string
+  isoCountrySource?: string
+  origin?: string
+  passport?: string
+  symptom?: string
+  symptomDetail?: string
+  symptoms?: string
+  triageColor?: string
+  triageLabel?: string
+  triageStatus?: string
+  idAssist?: number
+  codeAssist?: string
+  clientName?: string
+  descAssistanceType?: string
+  statusAssistLabel?: string
+  statusAssistStatus?: string
+  statusAssistIcon?: string
+  idAssistanceType?: number
+  approvedStatus?: number
+  idUsersCreated?: number
+  specialityLocation?: string
+  assignedToAssistance?: string
+  codigo?: string
+  prefijo?: string
+  refund?: string
+  voucherIsManual?: string
+  canCancelVoucher?: string
+  registeredDate?: Date
+  reportedDate?: Date
+  view?: string
 }) {
   await requireRole(["OWNER"])
 
@@ -294,8 +325,40 @@ export async function createCase(data: {
     address,
     phoneNumber,
     email,
-    symptoms,
+    nationality,
     assistanceType,
+    referenceNumber,
+    availability,
+    isoCountry,
+    isoCountrySource,
+    origin,
+    passport,
+    symptom,
+    symptomDetail,
+    symptoms,
+    triageColor,
+    triageLabel,
+    triageStatus,
+    idAssist,
+    codeAssist,
+    clientName,
+    descAssistanceType,
+    statusAssistLabel,
+    statusAssistStatus,
+    statusAssistIcon,
+    idAssistanceType,
+    approvedStatus,
+    idUsersCreated,
+    specialityLocation,
+    assignedToAssistance,
+    codigo,
+    prefijo,
+    refund,
+    voucherIsManual,
+    canCancelVoucher,
+    registeredDate,
+    reportedDate,
+    view,
   } = data
   
   const newCase = await prisma.case.create({
@@ -307,7 +370,39 @@ export async function createCase(data: {
       address,
       phoneNumber,
       email,
+      nationality,
       assistanceType,
+      referenceNumber,
+      availability,
+      isoCountry,
+      isoCountrySource,
+      origin,
+      passport,
+      symptom,
+      symptomDetail,
+      triageColor,
+      triageLabel,
+      triageStatus,
+      idAssist,
+      codeAssist,
+      clientName,
+      descAssistanceType,
+      statusAssistLabel,
+      statusAssistStatus,
+      statusAssistIcon,
+      idAssistanceType,
+      approvedStatus,
+      idUsersCreated,
+      specialityLocation,
+      assignedToAssistance,
+      codigo,
+      prefijo,
+      refund,
+      voucherIsManual,
+      canCancelVoucher,
+      registeredDate,
+      reportedDate,
+      view,
       rawEmailContent: symptoms,
       source: "MANUAL",
       status: "PENDING",
