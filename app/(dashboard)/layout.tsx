@@ -21,7 +21,7 @@ export default async function DashboardLayout({
       <GlobalNotificationListener />
       <div className="min-h-screen bg-background">
         <DashboardNav user={session.user} />
-        <main className="container mx-auto px-4 py-6 max-w-7xl">
+        <main className="container mx-auto px-4 py-6 max-w-[1620px]">
           {children}
         </main>
       </div>

@@ -8,15 +8,7 @@ export default async function SettingsPage() {
   const emailStats = await getEmailStats()
 
   return (
-    <div className="space-y-6 max-w-3xl">
-      {/* Header */}
-      <div>
-        <h1 className="text-2xl font-bold text-foreground">Settings</h1>
-        <p className="text-muted-foreground mt-1">
-          Configure email ingestion and system settings.
-        </p>
-      </div>
-
+    <div className="space-y-6 w-full">
       <SettingsPanel emailStats={emailStats} />
     </div>
   )

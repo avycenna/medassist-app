@@ -9,6 +9,7 @@ import prisma from "./prisma"
 import { parseEmailForCase } from "./email-parser"
 import type { AssistanceType } from "./types"
 import { ImapFlow } from "imapflow"
+import { addLog, clearLogs } from "./email-logs"
 
 interface EmailData {
   messageId: string
@@ -125,17 +126,38 @@ async function fetchNewEmails(): Promise<EmailData[]> {
     throw new Error(`Email configuration error: ${validation.errors.join(", ")}`)
   }
   
+  let settings = await prisma.emailSettings.findFirst()
+  if (!settings) {
+    settings = await prisma.emailSettings.create({
+      data: {
+        isActive: true,
+        checkInterval: 60,
+        messagesToCheck: 50,
+      },
+    })
+  }
+  
+  const messagesLimit = settings.messagesToCheck || 50
+  
   const host = process.env.IMAP_HOST!
   const port = parseInt(process.env.IMAP_PORT || "993")
   const user = process.env.IMAP_USER!
   const password = process.env.IMAP_PASSWORD!
   const tlsEnabled = process.env.IMAP_TLS !== "false"
   
+  addLog("Connecting to IMAP server...")
+  addLog(`IMAP_HOST: ${host}`)
+  addLog(`IMAP_PORT: ${port}`)
+  addLog(`IMAP_USER: ${user}`)
+  addLog(`IMAP_TLS: ${tlsEnabled}`)
+  addLog(`Messages to check limit: ${messagesLimit}`)
+  
   console.log("[*] Connecting to IMAP server...")
   console.log("[*] IMAP_HOST:", host)
   console.log("[*] IMAP_PORT:", port)
   console.log("[*] IMAP_USER:", user)
   console.log("[*] IMAP_TLS:", tlsEnabled)
+  console.log(`[*] Messages to check limit: ${messagesLimit}`)
   
   const client = new ImapFlow({
     host,
@@ -150,9 +172,11 @@ async function fetchNewEmails(): Promise<EmailData[]> {
   
   try {
     await client.connect()
+    addLog("Connected to IMAP server")
     console.log("[*] Connected to IMAP server")
     
     await client.mailboxOpen("INBOX")
+    addLog("Opened INBOX")
     console.log("[*] Opened INBOX")
     
     const today = new Date()
@@ -163,17 +187,26 @@ async function fetchNewEmails(): Promise<EmailData[]> {
       since: today
     }
     
+    addLog(`Searching for unread emails since ${today.toISOString()}`)
     console.log(`[*] Searching for unread emails since ${today.toISOString()}`)
     
     const messages: EmailData[] = []
+    let messageCount = 0
     
     for await (let message of client.fetch(searchCriteria, { 
       envelope: true, 
       source: true,
       uid: true 
     })) {
+      if (messageCount >= messagesLimit) {
+        addLog(`Reached limit of ${messagesLimit} messages, stopping fetch`)
+        console.log(`[*] Reached limit of ${messagesLimit} messages, stopping fetch`)
+        break
+      }
+      
       try {
         if (!message.envelope) {
+          addLog("Skipping message without envelope")
           console.log("[*] Skipping message without envelope")
           continue
         }
@@ -212,17 +245,22 @@ async function fetchNewEmails(): Promise<EmailData[]> {
           text: emailBody.trim(),
         })
         
+        messageCount++
+        addLog(`Fetched email: ${subject} from ${from}`)
         console.log(`[*] Fetched email: ${subject} from ${from}`)
       } catch (error) {
+        addLog(`Error processing email message: ${error instanceof Error ? error.message : "Unknown error"}`)
         console.error("[*] Error processing email message:", error)
       }
     }
     
     await client.logout()
+    addLog(`Disconnected from IMAP server. Fetched ${messages.length} unread emails.`)
     console.log(`[*] Disconnected from IMAP server. Fetched ${messages.length} unread emails.`)
     
     return messages
   } catch (error) {
+    addLog(`IMAP connection error: ${error instanceof Error ? error.message : "Unknown error"}`)
     console.error("[*] IMAP connection error:", error)
     throw error
   }
@@ -350,10 +388,13 @@ export async function runEmailIngestion(): Promise<{
   message?: string
   errorDetails?: string[]
 }> {
+  clearLogs()
+  addLog("Starting email ingestion...")
   console.log("[*] Starting email ingestion...")
   
   const validation = validateEmailConfig()
   if (!validation.valid) {
+    addLog("Email configuration incomplete")
     return {
       success: false,
       processed: 0,
@@ -366,6 +407,7 @@ export async function runEmailIngestion(): Promise<{
   
   try {
     const emails = await fetchNewEmails()
+    addLog(`Found ${emails.length} emails to process`)
     
     let processed = 0
     let created = 0
@@ -379,21 +421,25 @@ export async function runEmailIngestion(): Promise<{
         
         if (result.created) {
           created++
+          addLog(`Created case from email: ${result.caseId}`)
           console.log("[*] Created case from email:", result.caseId)
         } else if (result.error) {
           if (result.error !== "Not a medical case" && result.error !== "Email already processed") {
             errors++
             errorDetails.push(`${email.subject}: ${result.error}`)
+            addLog(`Error processing ${email.subject}: ${result.error}`)
           }
         }
       } catch (error) {
         errors++
         const errorMsg = error instanceof Error ? error.message : "Unknown error"
         errorDetails.push(`${email.subject}: ${errorMsg}`)
+        addLog(`Error processing ${email.subject}: ${errorMsg}`)
         console.error("[*] Error processing email:", error)
       }
     }
     
+    addLog(`Email ingestion complete: ${processed} processed, ${created} created, ${errors} errors`)
     console.log(`[*] Email ingestion complete: ${processed} processed, ${created} created, ${errors} errors`)
     
     return {
@@ -406,6 +452,7 @@ export async function runEmailIngestion(): Promise<{
     }
   } catch (error) {
     const errorMsg = error instanceof Error ? error.message : "Unknown error"
+    addLog(`Fatal error during email ingestion: ${errorMsg}`)
     console.error("[*] Fatal error during email ingestion:", error)
     
     return {

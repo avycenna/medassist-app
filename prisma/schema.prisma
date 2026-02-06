@@ -1,6 +1,3 @@
-// Prisma Schema for Medical Assistant Management App
-// PostgreSQL database with full case management, auth, and chat support
-
 generator client {
   provider = "prisma-client-js"
 }
@@ -9,148 +6,97 @@ datasource db {
   provider = "postgresql"
 }
 
-// User roles enum
-enum Role {
-  OWNER
-  PROVIDER
-}
-
-// Case status enum
-enum CaseStatus {
-  PENDING
-  ASSIGNED
-  IN_PROGRESS
-  COMPLETED
-  CANCELLED
-}
-
-// Type of assistance enum
-enum AssistanceType {
-  TELECONSULTATION
-  CLINIC_CONSULT
-  HOME_VISIT
-  EMERGENCY
-  OTHER
-}
-
-// Sender type for chat messages
-enum SenderType {
-  OWNER
-  PROVIDER
-  CLIENT
-}
-
-// User model for Owners and Providers
 model User {
-  id            String    @id @default(cuid())
-  email         String    @unique
-  username      String?   @unique
-  passwordHash  String
-  name          String
-  role          Role
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
-
-  // Relations
-  assignedCases          Case[]                   @relation("AssignedProvider")
-  messages               Message[]                @relation("UserMessages")
-  sessions               Session[]
+  id                     String                  @id @default(cuid())
+  email                  String                  @unique
+  username               String?                 @unique
+  passwordHash           String
+  name                   String
+  role                   Role
+  createdAt              DateTime                @default(now())
+  updatedAt              DateTime                @updatedAt
+  assignedCases          Case[]                  @relation("AssignedProvider")
+  receivedDirectMessages DirectMessage[]         @relation("ReceivedMessages")
+  sentDirectMessages     DirectMessage[]         @relation("SentMessages")
+  messages               Message[]               @relation("UserMessages")
   readMessages           MessageRead[]
   notificationPreference NotificationPreference?
-  sentDirectMessages     DirectMessage[]          @relation("SentMessages")
-  receivedDirectMessages DirectMessage[]          @relation("ReceivedMessages")
+  sessions               Session[]
 
   @@index([email])
   @@index([role])
 }
 
-// Session model for auth
 model Session {
   id        String   @id @default(cuid())
   userId    String
   token     String   @unique
   expiresAt DateTime
   createdAt DateTime @default(now())
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([token])
   @@index([userId])
 }
 
-// Case model - core entity for medical cases
 model Case {
-  id              String         @id @default(cuid())
-  
-  // Patient information
-  patientName     String?
-  firstName       String?
-  lastName        String?
-  dob             DateTime?
-  address         String?
-  phoneNumber     String?
-  email           String?
-  nationality     String?
-  
-  assistanceType  AssistanceType?
-  
-  referenceNumber String?
-  availability    String?
-  
-  status          CaseStatus     @default(PENDING)
-  assignedToId    String?
-  assignedTo      User?          @relation("AssignedProvider", fields: [assignedToId], references: [id])
-  
-  // Source information
-  source          String         @default("EMAIL")
-  rawEmailContent String?
-  emailSubject    String?
-  emailFrom       String?
-  emailReceivedAt DateTime?
-  
-  // Archive and deletion
-  isArchived      Boolean        @default(false)
-  archivedAt      DateTime?
-  deletedAt       DateTime?
-  
-  // Timestamps
-  createdAt       DateTime       @default(now())
-  updatedAt       DateTime       @updatedAt
-
-  idAssist            Int?
-  codeAssist          String?
-  codigo              String?
-  prefijo             String?
-  passport            String?
-  isoCountry          String?
-  origin              String?
-  isoCountrySource    String?
-  descAssistanceType  String?
-  idAssistanceType    Int?
-  canCancelVoucher    String?
-  clientName          String?
-  symptom             String?
-  symptomDetail       String?
-  idUsersCreated      Int?
-  reportedDate        DateTime?
-  registeredDate      DateTime?
-  triageStatus        String?
-  triageColor         String?
-  triageLabel         String?
-  refund              String?
-  voucherIsManual     String?
-  specialityLocation  String?
-  approvedStatus      Int?
+  id                   String          @id @default(cuid())
+  patientName          String?
+  firstName            String?
+  lastName             String?
+  dob                  DateTime?
+  address              String?
+  phoneNumber          String?
+  email                String?
+  nationality          String?
+  assistanceType       AssistanceType?
+  referenceNumber      String?
+  availability         String?
+  status               CaseStatus      @default(PENDING)
+  assignedToId         String?
+  source               String          @default("EMAIL")
+  rawEmailContent      String?
+  emailSubject         String?
+  emailFrom            String?
+  emailReceivedAt      DateTime?
+  createdAt            DateTime        @default(now())
+  updatedAt            DateTime        @updatedAt
+  archivedAt           DateTime?
+  deletedAt            DateTime?
+  isArchived           Boolean         @default(false)
+  approvedStatus       Int?
   assignedToAssistance String?
-  statusAssistStatus  String?
-  statusAssistIcon    String?
-  statusAssistLabel   String?
-  view                String?
-
-  // Relations
-  messages        Message[]
-  magicLinks      MagicLink[]
-  statusHistory   StatusHistory[]
+  canCancelVoucher     String?
+  clientName           String?
+  codeAssist           String?
+  codigo               String?
+  descAssistanceType   String?
+  idAssist             Int?
+  idAssistanceType     Int?
+  idUsersCreated       Int?
+  isoCountry           String?
+  isoCountrySource     String?
+  origin               String?
+  passport             String?
+  prefijo              String?
+  refund               String?
+  registeredDate       DateTime?
+  reportedDate         DateTime?
+  specialityLocation   String?
+  statusAssistIcon     String?
+  statusAssistLabel    String?
+  statusAssistStatus   String?
+  symptom              String?
+  symptomDetail        String?
+  triageColor          String?
+  triageLabel          String?
+  triageStatus         String?
+  view                 String?
+  voucherIsManual      String?
+  assignedTo           User?           @relation("AssignedProvider", fields: [assignedToId], references: [id])
+  magicLinks           MagicLink[]
+  messages             Message[]
+  statusHistory        StatusHistory[]
 
   @@index([status])
   @@index([assignedToId])
@@ -161,137 +107,210 @@ model Case {
   @@index([codeAssist])
 }
 
-// Magic link for client access
 model MagicLink {
-  id          String    @id @default(cuid())
-  tokenHash   String    @unique  // Hashed token for security
-  caseId      String
-  case        Case      @relation(fields: [caseId], references: [id], onDelete: Cascade)
-  
-  // Client information (filled after intake)
+  id              String    @id @default(cuid())
+  tokenHash       String    @unique
+  caseId          String
   clientFirstName String?
   clientLastName  String?
   clientEmail     String?
   clientPhone     String?
   intakeCompleted Boolean   @default(false)
-  
-  // Token lifecycle
-  expiresAt   DateTime?
-  revokedAt   DateTime?
-  usedAt      DateTime?
-  createdAt   DateTime  @default(now())
-
-  messages    Message[]
+  expiresAt       DateTime?
+  revokedAt       DateTime?
+  usedAt          DateTime?
+  createdAt       DateTime  @default(now())
+  case            Case      @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  messages        Message[]
 
   @@index([tokenHash])
   @@index([caseId])
 }
 
-// Chat messages
 model Message {
-  id          String     @id @default(cuid())
+  id          String        @id @default(cuid())
   caseId      String
-  case        Case       @relation(fields: [caseId], references: [id], onDelete: Cascade)
-  
   content     String
   senderType  SenderType
-  
-  // For OWNER/PROVIDER messages, link to user
   senderId    String?
-  sender      User?      @relation("UserMessages", fields: [senderId], references: [id])
-  
-  // For CLIENT messages, link to magic link
   magicLinkId String?
-  magicLink   MagicLink? @relation(fields: [magicLinkId], references: [id])
-  
-  createdAt   DateTime   @default(now())
-  
-  // Read tracking
+  createdAt   DateTime      @default(now())
+  case        Case          @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  magicLink   MagicLink?    @relation(fields: [magicLinkId], references: [id])
+  sender      User?         @relation("UserMessages", fields: [senderId], references: [id])
   readBy      MessageRead[]
 
   @@index([caseId])
   @@index([createdAt])
 }
 
-// Track which users have read which messages
 model MessageRead {
   id        String   @id @default(cuid())
   messageId String
-  message   Message  @relation(fields: [messageId], references: [id], onDelete: Cascade)
   userId    String
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   readAt    DateTime @default(now())
+  message   Message  @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([messageId, userId])
   @@index([userId])
   @@index([messageId])
 }
 
-// User notification preferences
 model NotificationPreference {
-  id                    String  @id @default(cuid())
-  userId                String  @unique
-  user                  User    @relation(fields: [userId], references: [id], onDelete: Cascade)
-  pushEnabled           Boolean @default(true)
-  emailEnabled          Boolean @default(true)
-  pushSubscription      String? // Web Push subscription JSON
-  createdAt             DateTime @default(now())
-  updatedAt             DateTime @updatedAt
+  id               String   @id @default(cuid())
+  userId           String   @unique
+  pushEnabled      Boolean  @default(true)
+  emailEnabled     Boolean  @default(true)
+  pushSubscription String?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
-// Status history for case timeline
 model StatusHistory {
-  id          String     @id @default(cuid())
-  caseId      String
-  case        Case       @relation(fields: [caseId], references: [id], onDelete: Cascade)
-  
-  fromStatus  CaseStatus?
-  toStatus    CaseStatus
-  changedBy   String?    // User ID who made the change
-  note        String?
-  
-  createdAt   DateTime   @default(now())
+  id         String      @id @default(cuid())
+  caseId     String
+  fromStatus CaseStatus?
+  toStatus   CaseStatus
+  changedBy  String?
+  note       String?
+  createdAt  DateTime    @default(now())
+  case       Case        @relation(fields: [caseId], references: [id], onDelete: Cascade)
 
   @@index([caseId])
 }
 
-// Email processing tracking
 model ProcessedEmail {
-  id          String   @id @default(cuid())
-  messageId   String   @unique  // Email message ID to prevent duplicates
-  subject     String?
-  from        String?
-  receivedAt  DateTime
-  processed   Boolean  @default(false)
-  caseId      String?  // If a case was created from this email
-  error       String?  // Any processing errors
-  createdAt   DateTime @default(now())
+  id         String   @id @default(cuid())
+  messageId  String   @unique
+  subject    String?
+  from       String?
+  receivedAt DateTime
+  processed  Boolean  @default(false)
+  caseId     String?
+  error      String?
+  createdAt  DateTime @default(now())
 
   @@index([messageId])
 }
 
-// Email ingestion settings (for future UI configuration)
 model EmailSettings {
-  id          String   @id @default(cuid())
-  isActive    Boolean  @default(true)
-  lastChecked DateTime?
-  checkInterval Int    @default(60) // seconds
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id              String    @id @default(cuid())
+  isActive        Boolean   @default(true)
+  lastChecked     DateTime?
+  checkInterval   Int       @default(60)
+  messagesToCheck Int       @default(50)
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
 }
 
 model DirectMessage {
-  id          String   @id @default(cuid())
-  content     String
-  senderId    String
-  receiverId  String
-  isRead      Boolean  @default(false)
-  createdAt   DateTime @default(now())
-  
-  sender      User     @relation("SentMessages", fields: [senderId], references: [id], onDelete: Cascade)
-  receiver    User     @relation("ReceivedMessages", fields: [receiverId], references: [id], onDelete: Cascade)
-  
+  id         String   @id @default(cuid())
+  content    String
+  senderId   String
+  receiverId String
+  isRead     Boolean  @default(false)
+  createdAt  DateTime @default(now())
+  receiver   User     @relation("ReceivedMessages", fields: [receiverId], references: [id], onDelete: Cascade)
+  sender     User     @relation("SentMessages", fields: [senderId], references: [id], onDelete: Cascade)
+
   @@index([senderId])
   @@index([receiverId])
   @@index([createdAt])
+}
+
+model Campaign {
+  id                String              @id
+  name              String
+  subject           String
+  body              String
+  status            CampaignStatus      @default(DRAFT)
+  smtpProviderId    String
+  scheduledAt       DateTime?
+  sentAt            DateTime?
+  totalRecipients   Int                 @default(0)
+  sentCount         Int                 @default(0)
+  failedCount       Int                 @default(0)
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime
+  SmtpProvider      SmtpProvider        @relation(fields: [smtpProviderId], references: [id])
+  CampaignRecipient CampaignRecipient[]
+
+  @@index([smtpProviderId])
+  @@index([status])
+}
+
+model CampaignRecipient {
+  id         String    @id
+  campaignId String
+  email      String
+  name       String?
+  sent       Boolean   @default(false)
+  sentAt     DateTime?
+  failed     Boolean   @default(false)
+  error      String?
+  createdAt  DateTime  @default(now())
+  Campaign   Campaign  @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+
+  @@index([campaignId])
+  @@index([email])
+}
+
+model SmtpProvider {
+  id         String     @id
+  name       String
+  host       String
+  port       Int
+  username   String
+  password   String
+  fromEmail  String
+  fromName   String?
+  useTLS     Boolean    @default(true)
+  isActive   Boolean    @default(true)
+  isBulk     Boolean    @default(false)
+  lastTested DateTime?
+  testStatus String?
+  testError  String?
+  createdAt  DateTime   @default(now())
+  updatedAt  DateTime
+  Campaign   Campaign[]
+
+  @@index([isActive])
+  @@index([isBulk])
+}
+
+enum Role {
+  OWNER
+  PROVIDER
+}
+
+enum CaseStatus {
+  PENDING
+  ASSIGNED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
+enum AssistanceType {
+  TELECONSULTATION
+  CLINIC_CONSULT
+  HOME_VISIT
+  EMERGENCY
+  OTHER
+}
+
+enum SenderType {
+  OWNER
+  PROVIDER
+  CLIENT
+}
+
+enum CampaignStatus {
+  DRAFT
+  SCHEDULED
+  SENDING
+  SENT
+  FAILED
 }

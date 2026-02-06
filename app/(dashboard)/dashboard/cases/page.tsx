@@ -19,8 +19,7 @@ export default async function CasesPage() {
   const providers = isOwner ? await getAllProviders() : []
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
+    <div className="space-y-6 w-full">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-foreground">
@@ -42,7 +41,6 @@ export default async function CasesPage() {
         )}
       </div>
 
-      {/* Realtime Cases Table */}
       <RealtimeCasesTable 
         initialCases={cases} 
         initialProviders={providers.map(p => ({ id: p.id, name: p.name, email: p.email }))}
